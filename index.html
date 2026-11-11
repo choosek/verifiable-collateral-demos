@@ -1,0 +1,1309 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Provable Borrowing Base</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a swimlane matrix (rows = where code runs, columns = steps) above a working console for the selected step */
+:root{
+  --bg:#f4f6f3; --surface:#ffffff; --surface-2:#edf0eb; --line:#d9ded6; --line-strong:#b8c0b4;
+  --fg:#17201b; --muted:#56625a; --faint:#8b958d;
+  --accent:#8d6200; --accent-soft:#f3e6c3;
+  --client:#2a66a6; --client-soft:#e6eef8;
+  --server:#86562a; --server-soft:#f4ebe1;
+  --prover:#69499c; --prover-soft:#eee8f7;
+  --chain:#0d726e; --chain-soft:#dff0ee;
+  --offchain:#9a7300;
+  --ok:#2b7a37; --ok-soft:#e1f0e2; --bad:#b0352a; --bad-soft:#f7e3e0; --warn:#9c6300; --warn-soft:#f6ead2;
+  --code-bg:#f1f3ef; --halo:#ffffff;
+  --shadow:0 1px 2px rgba(23,32,27,.06),0 6px 18px rgba(23,32,27,.06);
+  --f-display:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111513; --surface:#191e1b; --surface-2:#202723; --line:#2c3530; --line-strong:#45504a;
+  --fg:#e5ebe6; --muted:#a2ada5; --faint:#738078;
+  --accent:#e2b04c; --accent-soft:#3a2f15;
+  --client:#86b5ea; --client-soft:#18263a; --server:#dba574; --server-soft:#30241a;
+  --prover:#b9a0e8; --prover-soft:#272036; --chain:#5fcac2; --chain-soft:#10302d;
+  --offchain:#e2b04c;
+  --ok:#72cf80; --ok-soft:#163021; --bad:#f17d71; --bad-soft:#3a1d1a; --warn:#efb44f; --warn-soft:#382b13;
+  --code-bg:#151a17; --halo:#191e1b;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111513; --surface:#191e1b; --surface-2:#202723; --line:#2c3530; --line-strong:#45504a;
+  --fg:#e5ebe6; --muted:#a2ada5; --faint:#738078;
+  --accent:#e2b04c; --accent-soft:#3a2f15;
+  --client:#86b5ea; --client-soft:#18263a; --server:#dba574; --server-soft:#30241a;
+  --prover:#b9a0e8; --prover-soft:#272036; --chain:#5fcac2; --chain-soft:#10302d;
+  --offchain:#e2b04c;
+  --ok:#72cf80; --ok-soft:#163021; --bad:#f17d71; --bad-soft:#3a1d1a; --warn:#efb44f; --warn-soft:#382b13;
+  --code-bg:#151a17; --halo:#191e1b;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em;line-height:1.2}
+h1{font-size:clamp(1.65rem,1.2rem + 1.6vw,2.25rem);font-weight:700}
+h2{font-size:1.3rem;font-weight:600}
+h3{font-size:.95rem;font-weight:600}
+p{margin:0}
+ul{margin:0;padding-left:1.1em}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.eyebrow{font-family:var(--f-mono);font-size:.7rem;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+.muted{color:var(--muted)}
+.small{font-size:.8rem}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.row.between{justify-content:space-between}
+/* header */
+.hdr{padding-block:28px 18px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px 40px;align-items:end}
+.hdr-main{display:flex;flex-direction:column;gap:8px;min-width:0}
+.lede{color:var(--muted);font-size:1rem;max-width:66ch}
+.hdr-aside{display:flex;flex-direction:column;gap:10px;min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.real{font-size:.8rem;color:var(--muted);max-width:62ch}
+.real b{color:var(--fg);font-weight:600}
+@media (max-width:860px){.hdr{grid-template-columns:1fr;align-items:start}}
+/* chips & pills */
+.chip{--c:var(--faint);display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:.74rem;line-height:1.5;white-space:nowrap;color:var(--fg)}
+.chip i{width:9px;height:9px;border-radius:3px;background:var(--c);flex:none}
+.chip.off i{background:transparent;border:1.5px dashed var(--c)}
+[data-loc="client"]{--c:var(--client);--soft:var(--client-soft)}
+[data-loc="server"]{--c:var(--server);--soft:var(--server-soft)}
+[data-loc="prover"]{--c:var(--prover);--soft:var(--prover-soft)}
+[data-loc="chain"]{--c:var(--chain);--soft:var(--chain-soft)}
+[data-loc="off"]{--c:var(--offchain);--soft:transparent}
+.lg-line{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;color:var(--muted);padding:2px 4px}
+.lg-line svg{flex:none}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:1px 9px;border-radius:999px;font-family:var(--f-mono);font-size:.72rem;font-weight:600;letter-spacing:.03em;white-space:nowrap;line-height:1.6}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.neutral{background:var(--surface-2);color:var(--muted)}
+.pill.big{font-size:.86rem;padding:3px 12px}
+/* status band */
+.status-band{position:sticky;top:env(safe-area-inset-top,0px);z-index:8;background:var(--bg);border-block:1px solid var(--line)}
+.status{padding-block:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 22px}
+.status .k{display:block;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);line-height:1.3}
+.status .v{font-family:var(--f-mono);font-size:.84rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.status .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+@media (max-width:720px){.status-band{position:static}.status .hide-sm{display:none}.status .acts{margin-left:0}}
+/* buttons & inputs */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:5px 12px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface);color:var(--fg);font-size:.82rem;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--fg)}
+.btn.primary{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.btn.primary:hover{background:var(--muted);border-color:var(--muted)}
+.btn.warnb{border-color:var(--bad);color:var(--bad)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.input{min-height:32px;padding:5px 9px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface);color:var(--fg);font:inherit;font-size:.84rem;min-width:0}
+.input.mono{font-family:var(--f-mono);font-size:.8rem}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:5px 11px;font-size:.78rem;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer}
+.toggle input{accent-color:var(--fg);width:15px;height:15px}
+/* main */
+main.wrap{padding-block:18px 64px;display:flex;flex-direction:column;gap:22px}
+.flow-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.flow-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;align-items:baseline}
+.flow-head p{font-size:.8rem;color:var(--muted)}
+.flow{position:relative;display:grid;gap:8px 12px}
+.flow>svg{position:absolute;left:0;top:0;pointer-events:none;z-index:1;overflow:visible}
+.stripe{background:var(--soft);border-radius:8px;z-index:0}
+.lane-label{z-index:2;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:4px 6px;min-width:0}
+.lane-label .ln{display:flex;align-items:center;gap:6px;font-family:var(--f-display);font-weight:600;font-size:.82rem;line-height:1.2}
+.lane-label .ln i{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.lane-label .ls{font-size:.68rem;color:var(--muted);line-height:1.25}
+.group-label{z-index:2;font-family:var(--f-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:flex-end;padding:0 2px 3px;border-bottom:1px solid var(--line-strong);white-space:nowrap;overflow:hidden}
+.flow[data-orient="v"] .group-label{writing-mode:vertical-rl;transform:rotate(180deg);border-bottom:0;border-left:1px solid var(--line-strong);align-items:center;justify-content:center;padding:2px 3px 2px 0}
+.flow[data-orient="v"] .lane-label{align-items:center;text-align:center;padding:2px}
+.flow[data-orient="v"] .lane-label .ls{display:none}
+.flow[data-orient="v"] .lane-label .ln{flex-direction:column;gap:3px;font-size:.74rem}
+.node{z-index:2;position:relative;display:flex;flex-direction:column;gap:2px;align-self:center;min-width:0;text-align:left;padding:7px 8px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.node:hover{border-color:var(--c)}
+.node .nm{display:flex;align-items:center;gap:5px;font-family:var(--f-mono);font-size:.66rem;color:var(--muted)}
+.node .nm i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.node .t{font-family:var(--f-display);font-weight:600;font-size:.82rem;line-height:1.18}
+.node .r{font-size:.68rem;color:var(--muted);line-height:1.25}
+.node .live{font-family:var(--f-mono);font-size:.66rem;line-height:1.3;color:var(--fg);font-variant-numeric:tabular-nums}
+.node .live.ok{color:var(--ok)}.node .live.bad{color:var(--bad)}
+.node[aria-current="step"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.ghost{z-index:2;align-self:center;justify-self:center;max-width:100%;padding:3px 8px;border-radius:999px;border:1px dashed var(--c);background:var(--surface);font-size:.66rem;line-height:1.25;text-align:center;color:var(--muted);cursor:pointer}
+.ghost.on{color:var(--fg);border-style:solid;box-shadow:0 0 0 2px var(--accent-soft)}
+.flow[data-orient="v"] .node{padding:6px 7px}
+.flow[data-orient="v"] .node .t{font-size:.76rem}
+.flow svg .seq{fill:none;stroke:var(--muted);stroke-width:1.4}
+.flow svg .glink{fill:none;stroke:var(--faint);stroke-width:1.2;stroke-dasharray:2 3}
+.flow svg .loop{fill:none;stroke:var(--accent);stroke-width:1.4;stroke-dasharray:6 4}
+.flow svg .ah{fill:var(--muted)}
+.flow svg .ahA{fill:var(--accent)}
+.flow svg .loop-t{font-family:var(--f-mono);font-size:10px;fill:var(--accent);paint-order:stroke;stroke:var(--halo);stroke-width:4px;stroke-linejoin:round}
+/* detail */
+#detail{scroll-margin-top:84px}
+.d-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 18px}
+.d-head .d-t{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:78ch}
+.d-sum{color:var(--muted)}
+.detail{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:22px;align-items:start;margin-top:14px}
+@media (max-width:1000px){.detail{grid-template-columns:minmax(0,1fr)}}
+.win{background:var(--surface);border:1px solid var(--line-strong);border-radius:11px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+.win-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.win-bar .dots{display:flex;gap:5px}
+.win-bar .dots span{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}
+.win-title{font-weight:600;font-size:.84rem}
+.win-host{margin-left:auto;display:flex;flex-wrap:wrap;gap:5px}
+.win-body{padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.side{display:flex;flex-direction:column;min-width:0}
+.sb{display:flex;flex-direction:column;gap:8px;padding-block:14px;border-top:1px solid var(--line)}
+.sb:first-child{border-top:0;padding-top:2px}
+.sb p{font-size:.86rem}
+/* topology */
+.topo{display:flex;flex-direction:column}
+.topo-row{display:flex;flex-wrap:wrap;gap:6px}
+.tnode{flex:1 1 118px;min-width:0;border:1px solid var(--c);background:var(--soft);border-radius:8px;padding:6px 9px;font-size:.78rem;line-height:1.3}
+.tnode b{display:block;font-weight:600}
+.tnode small{display:block;color:var(--muted);font-size:.7rem}
+.tnode.dash{border-style:dashed;background:transparent}
+.tarrow{display:flex;align-items:center;gap:8px;padding:3px 0 3px 14px;font-size:.72rem;color:var(--muted);line-height:1.3}
+.tarrow span.a{font-size:1rem;color:var(--faint);width:12px;text-align:center;flex:none}
+/* visibility */
+.vis{display:flex;flex-direction:column;gap:7px}
+.vis div{display:grid;grid-template-columns:minmax(0,1fr);gap:3px}
+.vis b{font-size:.8rem;font-weight:600}
+.vis span{display:flex;flex-wrap:wrap;gap:4px}
+.aud{font-size:.7rem;padding:0 7px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);line-height:1.6;white-space:nowrap}
+.aud.pub{background:var(--accent-soft);color:var(--fg);border-color:transparent}
+/* console widgets */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.metric{border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.metric .l{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.metric .v{font-family:var(--f-display);font-weight:600;font-size:1.08rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 16px;margin:0;font-size:.82rem}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--f-mono);font-size:.78rem;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:310px}
+table.tbl{border-collapse:collapse;width:100%;font-size:.78rem}
+.tbl th{position:sticky;top:0;z-index:1;background:var(--surface-2);text-align:left;font-weight:600;font-size:.68rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:5px 9px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbl td.num,.tbl th.num{text-align:right}
+.tbl td.m{font-family:var(--f-mono);font-size:.74rem}
+.tbl tr.hl td{background:var(--accent-soft)}
+pre.code{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--f-mono);font-size:.74rem;line-height:1.55;overflow:auto;max-height:360px;white-space:pre;tab-size:2}
+.log{display:flex;flex-direction:column;gap:4px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--f-mono);font-size:.74rem;line-height:1.5;max-height:340px;overflow:auto;min-height:44px}
+.log>div{display:grid;grid-template-columns:16px minmax(0,1fr);gap:6px;overflow-wrap:anywhere}
+.log>div::before{content:"·";color:var(--faint);text-align:center}
+.log>.ok::before{content:"✓";color:var(--ok)}
+.log>.bad::before{content:"✕";color:var(--bad)}
+.log>.go::before{content:"→";color:var(--accent)}
+.log>.msg::before{content:"⇢";color:var(--prover)}
+.log .dim{color:var(--muted)}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:18px}
+@media (max-width:760px){.cols2{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:10px;min-width:0}
+.param{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;align-items:baseline}
+.param label{font-size:.8rem}
+.param output{font-family:var(--f-mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+.param input{grid-column:1/-1;width:100%;accent-color:var(--fg);margin:2px 0 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.src{border:1px solid var(--line);border-radius:9px;padding:11px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;font-size:.8rem}
+.src h3{font-size:.88rem}
+.src .lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.src .sig{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);overflow-wrap:anywhere}
+.callout{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:9px 12px;font-size:.8rem;display:flex;flex-direction:column;gap:4px}
+.callout.off{background:transparent;border:1px dashed var(--offchain)}
+.callout b{font-weight:600}
+.psi{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:stretch}
+.pbox{border:1px solid var(--prover);background:var(--prover-soft);border-radius:9px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.pbox .ids{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);line-height:1.45}
+.pbox .ids .dup{color:var(--bad);font-weight:600}
+.pmid{align-self:center;font-size:1.3rem;color:var(--prover)}
+@media (max-width:560px){.psi{grid-template-columns:minmax(0,1fr)}.pmid{justify-self:center;transform:rotate(90deg)}}
+.covs{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.cov{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.78rem;min-width:0}
+.cov .dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex:none;background:var(--ok)}
+.cov.bad{border-color:var(--bad);background:var(--bad-soft)}
+.cov.bad .dot{background:var(--bad)}
+.cov b{display:block;font-size:.8rem}
+.cov span{color:var(--muted);font-family:var(--f-mono);font-size:.72rem}
+.scen{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.scard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 9px;text-align:left;border:1px solid var(--line-strong);background:var(--surface);border-radius:9px;padding:9px 11px;cursor:pointer;font-size:.76rem;color:var(--muted)}
+.scard:hover{border-color:var(--fg)}
+.scard .sn{grid-row:1/3;font-family:var(--f-mono);font-weight:600;font-size:.78rem;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);color:var(--fg)}
+.scard b{color:var(--fg);font-size:.82rem;font-weight:600}
+.scard[aria-pressed="true"]{border-color:var(--bad);background:var(--bad-soft)}
+.scard[aria-pressed="true"] .sn{background:var(--bad);color:var(--surface)}
+.scard:disabled{opacity:.5;cursor:wait}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:78px minmax(0,1fr) 92px;gap:8px;align-items:center;font-size:.76rem}
+.bar .track{position:relative;height:14px;background:var(--surface-2);border-radius:3px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--client);border-radius:3px}
+.bar .tv{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg)}
+.bar .val{font-family:var(--f-mono);font-size:.72rem;text-align:right;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs button{border:0;background:none;padding:6px 12px;font-size:.82rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg);font-weight:600}
+.path{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:.7rem}
+.path div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:6px;color:var(--muted);overflow-wrap:anywhere}
+.result{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.84rem}
+.progress{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.progress>div{height:100%;background:var(--prover);width:0;transition:width .2s}
+details.more{border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+details.more summary{cursor:pointer;font-size:.82rem;font-weight:500}
+details.more[open] summary{margin-bottom:8px}
+.ilist{list-style:none;padding:0;display:flex;flex-direction:column;gap:3px;font-size:.8rem}
+.ilist li::before{content:"▪ ";color:var(--faint)}
+.io{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head><body>
+
+<header class="wrap hdr">
+  <div class="hdr-main">
+    <p class="eyebrow">Choose K · demo walkthrough</p>
+    <h1>Provable borrowing base for a soybean-receivables vault</h1>
+    <p class="lede">Each column is one step of the demo, in order. Each row is where that step's code runs. Click any step to open the screen that the person or service at that step would use. All nine screens share one simulated vault, so a draw in step 7 or a scenario in step 9 changes what the other steps show.</p>
+  </div>
+  <div class="hdr-aside">
+    <div class="legend" aria-label="Legend">
+      <span class="chip" data-loc="client"><i></i>Browser app</span>
+      <span class="chip" data-loc="server"><i></i>Private server</span>
+      <span class="chip" data-loc="prover"><i></i>Prover (TEE or zkVM)</span>
+      <span class="chip" data-loc="chain"><i></i>Chain contract</span>
+      <span class="chip off" data-loc="off"><i></i>Off-chain, outside the demo</span>
+    </div>
+    <div class="legend">
+      <span class="lg-line"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="20" y2="5" stroke="currentColor" stroke-width="1.4"/><path d="M19,1 L26,5 L19,9 z" fill="currentColor"/></svg>step order</span>
+      <span class="lg-line"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 3"/></svg>same step, also runs here</span>
+      <span class="lg-line" style="color:var(--accent)"><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1.4" stroke-dasharray="6 4"/></svg>repeats every cycle</span>
+    </div>
+    <p class="real"><b>Real in this page:</b> SHA-256 commitments, Merkle proofs, ECDSA P-256 signatures, the PSI protocol (toy parameters) and the differential-privacy noise all run in your browser. <b>Simulated:</b> the chain and its contracts, the TEE and zkVM proofs, the outside data sources and the clock. All loans, names and companies are synthetic.</p>
+  </div>
+</header>
+<div class="status-band"><div class="wrap status" id="status" aria-live="polite"></div></div>
+<main class="wrap">
+  <section class="flow-card" aria-label="Demo flow">
+    <div class="flow-head"><h2>The flow</h2><p>Steps 2 to 6 repeat every six hours. Click a step or any dashed tag.</p></div>
+    <div class="flow" id="flow"></div>
+  </section>
+  <section id="detail" aria-label="Selected step"></section>
+</main>
+<script>
+"use strict";
+/* ================= helpers ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pace = ms => RM ? Promise.resolve() : sleep(ms);
+const sum = (a, f = x => x.amount) => a.reduce((s, x) => s + f(x), 0);
+const pad = (n, w) => String(n).padStart(w, '0');
+function usd(n, dp){ const a = Math.abs(n), s = n < 0 ? '−' : ''; if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(dp ?? 2) + 'M'; if (a >= 1e3) return s + '$' + (a / 1e3).toFixed(dp ?? 0) + 'K'; return s + '$' + a.toFixed(0); }
+const usdF = n => (n < 0 ? '−$' : '$') + Math.round(Math.abs(n)).toLocaleString('en-US');
+const pct = (x, dp = 1) => (x * 100).toFixed(dp) + '%';
+const short = (h, a = 8, b = 6) => h ? '0x' + h.slice(0, a) + '…' + h.slice(-b) : '—';
+
+/* ================= SHA-256 (pure JS, so it works from a local file too) ================= */
+const K256 = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+const W64 = new Uint32Array(64);
+function sha256(msg){
+  const l = msg.length, padLen = ((l + 9 + 63) >> 6) << 6;
+  const buf = new Uint8Array(padLen); buf.set(msg); buf[l] = 0x80;
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(padLen - 8, Math.floor(l / 0x20000000)); dv.setUint32(padLen - 4, (l * 8) >>> 0);
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+  for (let off = 0; off < padLen; off += 64){
+    for (let i = 0; i < 16; i++) W64[i] = dv.getUint32(off + i * 4);
+    for (let i = 16; i < 64; i++){
+      const a = W64[i-15], b = W64[i-2];
+      const s0 = ((a>>>7)|(a<<25)) ^ ((a>>>18)|(a<<14)) ^ (a>>>3);
+      const s1 = ((b>>>17)|(b<<15)) ^ ((b>>>19)|(b<<13)) ^ (b>>>10);
+      W64[i] = (W64[i-16] + s0 + W64[i-7] + s1) >>> 0;
+    }
+    let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+    for (let i = 0; i < 64; i++){
+      const S1 = ((e>>>6)|(e<<26)) ^ ((e>>>11)|(e<<21)) ^ ((e>>>25)|(e<<7));
+      const t1 = (h + S1 + ((e & f) ^ (~e & g)) + K256[i] + W64[i]) >>> 0;
+      const S0 = ((a>>>2)|(a<<30)) ^ ((a>>>13)|(a<<19)) ^ ((a>>>22)|(a<<10));
+      const t2 = (S0 + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    h0=(h0+a)>>>0; h1=(h1+b)>>>0; h2=(h2+c)>>>0; h3=(h3+d)>>>0; h4=(h4+e)>>>0; h5=(h5+f)>>>0; h6=(h6+g)>>>0; h7=(h7+h)>>>0;
+  }
+  const out = new Uint8Array(32), odv = new DataView(out.buffer);
+  [h0,h1,h2,h3,h4,h5,h6,h7].forEach((v, i) => odv.setUint32(i * 4, v));
+  return out;
+}
+const HX = Array.from({length: 256}, (_, i) => i.toString(16).padStart(2, '0'));
+const toHex = b => { let s = ''; for (let i = 0; i < b.length; i++) s += HX[b[i]]; return s; };
+const fromHex = h => { const o = new Uint8Array(h.length >> 1); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(i * 2, 2), 16); return o; };
+const TE = new TextEncoder();
+const H = s => toHex(sha256(TE.encode(s)));
+function canon(v){ if (v === null || typeof v !== 'object') return JSON.stringify(v); if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']'; return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}'; }
+const rndHex = n => toHex(crypto.getRandomValues(new Uint8Array(n)));
+
+/* ================= Merkle tree ================= */
+const ZERO = '0'.repeat(64);
+const hp = (a, b) => toHex(sha256(fromHex(a + b)));
+function merkle(leaves){
+  let lvl = leaves.slice(), n = 1; while (n < lvl.length) n <<= 1; while (lvl.length < n) lvl.push(ZERO);
+  const levels = [lvl];
+  while (lvl.length > 1){ const nx = []; for (let i = 0; i < lvl.length; i += 2) nx.push(hp(lvl[i], lvl[i + 1])); levels.push(nx); lvl = nx; }
+  return {root: lvl[0], levels};
+}
+function mpath(levels, i){ const p = []; for (let l = 0; l < levels.length - 1; l++){ p.push({h: levels[l][i ^ 1], side: (i & 1) ? 'L' : 'R'}); i >>= 1; } return p; }
+function mverify(leaf, path, root){ let c = leaf; for (const s of path) c = s.side === 'L' ? hp(s.h, c) : hp(c, s.h); return c === root; }
+
+/* ================= ECDSA P-256 signers (Web Crypto) ================= */
+const SUB = (window.crypto && crypto.subtle && window.isSecureContext !== false) ? crypto.subtle : null;
+async function mkSigner(){
+  if (SUB){ try { const kp = await SUB.generateKey({name: 'ECDSA', namedCurve: 'P-256'}, true, ['sign', 'verify']); const raw = new Uint8Array(await SUB.exportKey('raw', kp.publicKey)); return {kp, fp: toHex(sha256(raw)).slice(0, 16), real: true}; } catch (e) { /* fall through */ } }
+  const sec = rndHex(32); return {sec, fp: H('pk|' + sec).slice(0, 16), real: false};
+}
+async function signH(s, m){ if (s.real) return toHex(new Uint8Array(await SUB.sign({name: 'ECDSA', hash: 'SHA-256'}, s.kp.privateKey, fromHex(m)))); return H(s.sec + '|' + m) + H(m + '|' + s.sec); }
+async function verifyH(s, m, sig){ if (s.real){ try { return await SUB.verify({name: 'ECDSA', hash: 'SHA-256'}, s.kp.publicKey, fromHex(sig), fromHex(m)); } catch (e) { return false; } } return sig === H(s.sec + '|' + m) + H(m + '|' + s.sec); }
+
+/* ================= PSI: Diffie-Hellman style, toy 255-bit prime field ================= */
+const PP = (1n << 255n) - 19n, PM1 = PP - 1n;
+function modpow(b, e, m){ let r = 1n; b %= m; while (e > 0n){ if (e & 1n) r = r * b % m; b = b * b % m; e >>= 1n; } return r; }
+function gcdB(a, b){ while (b){ const t = a % b; a = b; b = t; } return a; }
+function randExp(){ for (;;){ const a = BigInt('0x' + rndHex(16)) | 1n; if (gcdB(a, PM1) === 1n) return a; } }
+const h2g = id => { const x = BigInt('0x' + H('psi|' + id)) % PP; return x < 2n ? x + 2n : x; };
+const bhex = x => x.toString(16).padStart(64, '0');
+async function psiRun(A, B, onMsg){
+  let ops = 0, work = 0; const now = () => performance.now();
+  const a = randExp(), b = randExp();
+  let t0 = now(); const Ab = A.map(id => (ops++, modpow(h2g(id), a, PP))); work += now() - t0;
+  if (onMsg) await onMsg(1, Ab);
+  t0 = now(); const ABb = Ab.map(x => (ops++, modpow(x, b, PP))); const Bb = B.map(id => (ops++, modpow(h2g(id), b, PP))); work += now() - t0;
+  if (onMsg) await onMsg(2, ABb, Bb);
+  t0 = now(); const BAb = new Set(Bb.map(x => (ops++, modpow(x, a, PP).toString(16)))); const hits = A.filter((id, i) => BAb.has(ABb[i].toString(16))); work += now() - t0;
+  if (onMsg) await onMsg(3, hits);
+  return {hits, ops, ms: work, nA: A.length, nB: B.length};
+}
+
+/* ================= randomness for synthetic data and DP noise ================= */
+function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const lap = (u, b) => -b * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+
+/* ================= simulated clock (Brasília time) ================= */
+const DAY = 864e5, HOUR = 36e5;
+const T0 = Date.UTC(2026, 10, 12, 12, 0, 0); // Thu 12 Nov 2026, 09:00 BRT
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const brt = ms => new Date(ms - 3 * HOUR);
+const fmtT = ms => { const d = brt(ms); return `${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}, ${pad(d.getUTCHours(), 2)}:${pad(d.getUTCMinutes(), 2)} BRT`; };
+const fmtHM = ms => { const d = brt(ms); return `${DOW[d.getUTCDay()]} ${pad(d.getUTCHours(), 2)}:${pad(d.getUTCMinutes(), 2)}`; };
+const fmtD = ms => { const d = brt(ms); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+
+/* ================= synthetic loan tape ================= */
+const UFS = [['MT', .38], ['PR', .17], ['GO', .14], ['MS', .11], ['RS', .11], ['BA', .09]];
+const TRADERS = [['Trader A', .23], ['Trader B', .21], ['Trader C', .20], ['Trader D', .19], ['Trader E', .17]];
+const KIND = {F: 'CPR física', N: 'CPR financeira', O: 'Offtake contract'};
+const PREF = ['Fazenda', 'Agropecuária', 'Sítio', 'Cooperativa', 'Grupo', 'Agrícola'];
+const PLACES = ['Boa Vista','Santa Rita','São Jorge','Três Rios','Primavera','Esperança','Bom Jesus','Água Limpa','Cerrado Verde','Rio Claro','Ouro Fino','Campo Alto','Pedra Branca','Serra Azul','Vale do Sol','Lagoa Seca','Morro Alto','Bela Vista','Santa Cruz','Nova Era','Porto Feliz','Capão Bonito','Rio Verde','Palmeiras','Jatobá','Ipê Amarelo','Buriti','Aroeira','Baru','Pequi'];
+const RJ_ISS = 'ISS-0047';
+function pickW(rnd, w){ let u = rnd(), acc = 0; for (const [v, p] of w){ acc += p; if (u < acc) return v; } return w[w.length - 1][0]; }
+function shuffle(a, rnd){ for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function genBase(){
+  const rnd = mulberry32(0x26111209);
+  const names = []; for (const p of PREF) for (const q of PLACES) names.push(p + ' ' + q);
+  shuffle(names, rnd);
+  const k = names.indexOf('Grupo Três Rios'); [names[46], names[k]] = [names[k], names[46]];
+  const issuers = names.slice(0, 170).map((name, i) => ({id: 'ISS-' + pad(i + 1, 4), name, uf: pickW(rnd, UFS)}));
+  issuers[46].uf = 'MT';
+  issuers.forEach(x => { x.tax = H('cnpj|' + x.id).slice(0, 12); });
+  const byId = Object.fromEntries(issuers.map(x => [x.id, x]));
+  const taxToId = Object.fromEntries(issuers.map(x => [x.tax, x.id]));
+  const recs = [], reg = {}, conf = {}; let cs = 4100, os = 300;
+  function add(k, iss, amount, off, o = {}){
+    const tenor = o.tenor ?? (rnd() < 0.055 ? 95 + Math.floor(rnd() * 56) : 30 + Math.floor(rnd() * 61));
+    let dpd = 0; const u = rnd();
+    if (!o.current){ if (u < 0.028) dpd = 31 + Math.floor(rnd() * 50); else if (u < 0.075) dpd = 1 + Math.floor(rnd() * 30); }
+    let issued, maturity;
+    if (dpd > 0){ maturity = T0 - dpd * DAY; issued = maturity - tenor * DAY; }
+    else { issued = T0 - Math.floor(rnd() * tenor * 0.9) * DAY; maturity = issued + tenor * DAY; }
+    const id = k === 'O' ? 'OFT-26-' + pad(os += 1 + Math.floor(rnd() * 3), 4) : 'CPR-26-' + pad(cs += 1 + Math.floor(rnd() * 9), 6);
+    const r = {id, k, kind: KIND[k], issuerId: iss.id, issuer: iss.name, uf: iss.uf, offtaker: off, amount: Math.round(amount / 500) * 500, tenor, dpd, issued, maturity};
+    if (k !== 'O'){ const v = rnd(); reg[id] = v < 0.010 ? 'Another lender' : v < 0.018 ? null : 'SPV A'; r.registrar = rnd() < 0.7 ? 'B3' : 'CERC'; }
+    else conf[id] = rnd() >= 0.03;
+    recs.push(r); return r;
+  }
+  const plan = [];
+  for (let i = 0; i < 186; i++) plan.push('F');
+  for (let i = 0; i < 218; i++) plan.push('N');
+  for (let i = 0; i < 88; i++) plan.push('O');
+  for (let i = 0; i < 4; i++) plan.push('rN', 'rF');
+  shuffle(plan, rnd);
+  const issPick = () => { for (;;){ const i = Math.floor(170 * Math.pow(rnd(), 1.25)); if (i !== 46) return issuers[i]; } };
+  for (const p of plan){
+    if (p[0] === 'r'){ const r = add(p[1], issuers[46], 66000 + rnd() * 10000, rnd() < .5 ? 'Trader A' : 'Trader B', {current: true, tenor: 45 + Math.floor(rnd() * 40)}); reg[r.id] = 'SPV A'; continue; }
+    const iss = issPick();
+    if (p === 'F') add('F', iss, 8000 + 45000 * Math.pow(rnd(), 1.8), pickW(rnd, TRADERS));
+    else if (p === 'N') add('N', iss, 8000 + 40000 * Math.pow(rnd(), 1.8), pickW(rnd, TRADERS));
+    else add('O', iss, 25000 + 80000 * Math.pow(rnd(), 1.7), pickW(rnd, TRADERS));
+  }
+  const vaultB = []; for (let i = 0; i < 140; i++) vaultB.push('OFT-26-' + pad(1001 + i * 2 + Math.floor(rnd() * 2), 4));
+  const ofts = recs.filter(r => r.k === 'O');
+  const dupRec = ofts.slice(30).find(r => conf[r.id] && r.tenor <= 90 && r.dpd === 0 && r.offtaker !== 'Trader D');
+  const expected = []; for (let i = 0; i < 70; i++) expected.push({ref: 'CPR-26-00' + (3001 + i * 3), amount: Math.round((12000 + 30000 * rnd()) / 500) * 500});
+  const missIdx = new Set(shuffle([...Array(70).keys()], rnd).slice(0, 27));
+  return {issuers, byId, taxToId, recs, reg, conf, vaultB, dupId: dupRec.id, expected, missIdx};
+}
+
+/* ================= policy ================= */
+const DEF_POL = {advanceRate: .80, maxTenor: 90, maxDpd: 30, offtakerCap: .25, obligorCap: .05, maxDelinq: .05, minTieOut: .98, maxAgeH: 24, keepFisica: true};
+const polHash = p => H('borrowing-base-policy/v1|' + canon(p));
+const P100 = x => { const v = Math.round(x * 1000) / 10; return (v % 1 ? v.toFixed(1) : v.toFixed(0)) + '%'; };
+function polText(p){
+  return `policy soy_vault_a {
+  // 1. Eligibility, checked for every record on the tape
+  eligible(r) :=
+       r.tenor_days    <= ${p.maxTenor}
+    && r.days_past_due <= ${p.maxDpd}
+    && if r.kind == OFFTAKE_CONTRACT
+         then offtaker.confirmed(r.id)
+         else registry.lien_holder(r.id) == SPV_A
+    && not psi.in_other_vault(r.id)
+    && if court.in_recovery(r.issuer)
+         then ${p.keepFisica ? 'r.kind == CPR_FISICA   // physical CPRs stay outside the recovery' : 'false                  // drop every CPR of the issuer'}
+         else true
+
+  // 2. Amounts above the caps are not lent against
+  excess := sum over offtakers: max(0, eligible(o) - ${P100(p.offtakerCap)} * eligible_total)
+          + sum over issuers:   max(0, eligible(i) - ${P100(p.obligorCap)} * eligible_total)
+
+  borrowing_base := ${P100(p.advanceRate)} * (eligible_total - excess)
+
+  // 3. Covenants: all must hold for the gate to open
+  covenant delinquency   := late_over_30_days / pool_total <= ${P100(p.maxDelinq)}
+  covenant concentration := top_offtaker_share <= ${P100(p.offtakerCap)}
+                            && top_issuer_share <= ${P100(p.obligorCap)}
+  covenant collections   := landed / expected >= ${P100(p.minTieOut)}
+  covenant unique        := psi.overlap == 0
+
+  // 4. Checked on-chain by VaultGate, not by the prover
+  freshness      := now - as_of <= ${p.maxAgeH}h
+  no_overadvance := drawn <= borrowing_base
+}`;
+}
+
+/* ================= evaluation (the logic the prover runs) ================= */
+const REASON = {tenor: 'tenor over the limit', dpd: 'too many days late', registry: 'lien not held by SPV A', offtaker: 'not confirmed by its offtaker', dup: 'also financed in Vault B', rj: 'issuer in judicial recovery'};
+const COV_LABEL = {delinquency: 'Delinquency', concentration: 'Concentration', collections: 'Collections tie-out', unique: 'No duplicates'};
+function evaluate(recs, av, dupes, p){
+  const ex = {}; Object.keys(REASON).forEach(k => ex[k] = {n: 0, amt: 0});
+  const elig = [];
+  for (const r of recs){
+    let why = null;
+    if (r.tenor > p.maxTenor) why = 'tenor';
+    else if (r.dpd > p.maxDpd) why = 'dpd';
+    else if (r.k === 'O' ? !av.off[r.id] : av.reg[r.id] !== 'SPV A') why = r.k === 'O' ? 'offtaker' : 'registry';
+    else if (dupes.has(r.id)) why = 'dup';
+    else if (r.k !== 'O' && av.rj.has(r.issuerId) && !(p.keepFisica && r.k === 'F')) why = 'rj';
+    if (why){ ex[why].n++; ex[why].amt += r.amount; } else elig.push(r);
+  }
+  const pool = sum(recs), E = sum(elig);
+  const byOff = {}, byIss = {};
+  for (const r of elig){ byOff[r.offtaker] = (byOff[r.offtaker] || 0) + r.amount; if (r.k !== 'O') byIss[r.issuerId] = (byIss[r.issuerId] || 0) + r.amount; }
+  let exOff = 0, exIss = 0;
+  for (const v of Object.values(byOff)) exOff += Math.max(0, v - p.offtakerCap * E);
+  for (const v of Object.values(byIss)) exIss += Math.max(0, v - p.obligorCap * E);
+  const top = Object.entries(byOff).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+  const topI = Object.entries(byIss).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+  const delinq = pool ? sum(recs.filter(r => r.dpd > 30)) / pool : 0;
+  const tie = av.bank.exp ? av.bank.landed / av.bank.exp : 1;
+  const bb = Math.floor(p.advanceRate * (E - exOff - exIss) / 1000) * 1000;
+  const eps = 1e-9;
+  const cov = {
+    delinquency: delinq <= p.maxDelinq + eps,
+    concentration: (E ? top[1] / E : 0) <= p.offtakerCap + eps && (E ? topI[1] / E : 0) <= p.obligorCap + eps,
+    collections: tie >= p.minTieOut - eps,
+    unique: dupes.size === 0
+  };
+  const late = [0, 0, 0, 0]; const byUF = {};
+  for (const r of recs){ late[r.dpd === 0 ? 0 : r.dpd <= 30 ? 1 : r.dpd <= 60 ? 2 : 3]++; byUF[r.uf] = (byUF[r.uf] || 0) + r.amount; }
+  return {n: recs.length, pool, eligN: elig.length, E, ex, byOff, exOff, exIss, top: {name: top[0], share: E ? top[1] / E : 0}, topI: {id: topI[0], share: E ? topI[1] / E : 0}, delinq, tie, bank: av.bank, bb, cov, late, byUF, p};
+}
+
+/* ================= attestations from the four sources ================= */
+const SRC_KEYS = ['reg', 'off', 'bank', 'rj'];
+function buildStmt(w, recs){
+  if (w === 'reg') return {source: 'registry-agent', asOf: S.clock, items: recs.filter(r => r.k !== 'O').map(r => [r.id, BASE.reg[r.id] || 'not found', r.registrar])};
+  if (w === 'off') return {source: 'offtakers', asOf: S.clock, items: recs.filter(r => r.k === 'O').map(r => [r.id, r.offtaker, BASE.conf[r.id] ? 'confirmed' : 'pending'])};
+  if (w === 'bank') return {source: 'collection-bank', asOf: S.clock, account: 'controlled account, SPV A', items: BASE.expected.map((e, i) => [e.ref, e.amount, S.sc.collections && BASE.missIdx.has(i) ? 0 : e.amount])};
+  const ids = [...new Set(recs.filter(r => r.k !== 'O').map(r => r.issuerId))];
+  return {source: 'court-feed', asOf: S.clock, items: ids.map(id => [BASE.byId[id].tax, S.sc.rj && id === RJ_ISS ? 'filed' : 'none'])};
+}
+async function attest(which = SRC_KEYS){
+  for (const w of which){
+    const st = buildStmt(w, S.tape.records), hash = H(canon(st));
+    const sig = await signH(SIG[w], hash), ok = await verifyH(SIG[w], hash, sig);
+    S.att[w] = {st, hash, sig, ok, at: S.clock, snap: S.tape.n};
+  }
+}
+function attView(){
+  const reg = {}, off = {}, rj = new Set(), bank = {exp: 0, landed: 0, nExp: 0, nLand: 0};
+  for (const [id, h] of S.att.reg.st.items) reg[id] = h;
+  for (const [id, , c] of S.att.off.st.items) off[id] = c === 'confirmed';
+  for (const [, e, l] of S.att.bank.st.items){ bank.exp += e; bank.landed += l; bank.nExp++; if (l > 0) bank.nLand++; }
+  for (const [tax, s] of S.att.rj.st.items) if (s === 'filed') rj.add(BASE.taxToId[tax]);
+  return {reg, off, rj, bank};
+}
+
+/* ================= tape snapshots and PSI sets ================= */
+function currentRecords(){ return BASE.recs.map(r => S.sc.offtaker && r.offtaker === 'Trader D' ? {...r, offtaker: 'Trader C'} : r); }
+const leafOf = (r, salt) => H(salt + '|' + canon({id: r.id, kind: r.kind, issuer: r.issuerId, uf: r.uf, offtaker: r.offtaker, amount: r.amount, issued: r.issued, maturity: r.maturity, dpd: r.dpd}));
+function commitTape(){
+  const t0 = performance.now(), records = currentRecords();
+  const salts = records.map(() => rndHex(16)), leaves = records.map((r, i) => leafOf(r, salts[i])), tr = merkle(leaves);
+  S.snapN++;
+  S.tape = {n: S.snapN, records, salts, leaves, levels: tr.levels, root: tr.root, at: S.clock, ms: performance.now() - t0};
+  S.snapshots.set(tr.root, S.tape);
+  for (const key of S.snapshots.keys()){ if (S.snapshots.size <= 6) break; if (key !== S.chain.last?.root && key !== S.tape.root) S.snapshots.delete(key); }
+}
+const vaultA = () => S.tape.records.filter(r => r.k === 'O').map(r => r.id);
+const vaultB = () => S.sc.dup ? [...BASE.vaultB.slice(0, 63), BASE.dupId, ...BASE.vaultB.slice(63)] : BASE.vaultB;
+const psiKey = () => H(canon([vaultA(), vaultB()]));
+async function runPsi(onMsg){ const A = vaultA(), B = vaultB(); const res = await psiRun(A, B, onMsg); S.psi = {...res, key: H(canon([A, B])), at: S.clock}; return S.psi; }
+
+/* ================= prover: evaluate, then sign (TEE) or prove (zkVM) ================= */
+const PROGRAM_ID = H('choosek/borrowing-base-evaluator@0.3.0');
+const MEASUREMENT = H('tdx-mrtd|' + PROGRAM_ID);
+async function prove(backend, log = () => {}){
+  const pol = S.policies[S.chain.policyHash];
+  if (SRC_KEYS.some(w => !S.att[w] || S.att[w].snap !== S.tape.n)){ log(`Confirmations were for an older snapshot, so the prover asked the four sources again for snapshot #${S.tape.n}`, 'go'); await attest(); }
+  if (!S.psi || S.psi.key !== psiKey()){ log('The duplicate check was for different sets, so it ran again', 'go'); await runPsi(); }
+  log(`Loaded policy v${S.chain.policyVersion} (${short(S.chain.policyHash)}), the version registered in VaultGate`, 'ok');
+  const sigs = await Promise.all(SRC_KEYS.map(w => verifyH(SIG[w], S.att[w].hash, S.att[w].sig)));
+  log(`Checked the 4 source signatures (ECDSA P-256): ${sigs.every(Boolean) ? 'all valid' : 'one or more invalid'}`, sigs.every(Boolean) ? 'ok' : 'bad');
+  const rootOk = merkle(S.tape.records.map((r, i) => leafOf(r, S.tape.salts[i]))).root === S.tape.root;
+  log(`Recomputed the tape root from ${S.tape.records.length} records and their salts: ${short(S.tape.root)} ${rootOk ? 'matches' : 'does not match'} snapshot #${S.tape.n}`, rootOk ? 'ok' : 'bad');
+  const dupes = new Set(S.psi.hits);
+  const ev = evaluate(S.tape.records, attView(), dupes, pol);
+  log(`Eligible: ${ev.eligN} of ${ev.n} records, ${usd(ev.E)} of ${usd(ev.pool)} face value`, 'ok');
+  const exl = Object.entries(ev.ex).filter(([, v]) => v.n).map(([k, v]) => `${v.n} ${REASON[k]} (${usd(v.amt)})`);
+  if (exl.length) log('Excluded: ' + exl.join('; '), 'dim');
+  log(`Largest offtaker: ${ev.top.name} at ${pct(ev.top.share)} (cap ${P100(pol.offtakerCap)}). Largest issuer: ${pct(ev.topI.share)} (cap ${P100(pol.obligorCap)})`, ev.cov.concentration ? 'ok' : 'bad');
+  log(`Borrowing base: ${P100(pol.advanceRate)} × (${usd(ev.E)} − ${usd(ev.exOff + ev.exIss)} above caps) = ${usd(ev.bb)}`, 'ok');
+  log(`Delinquency ${pct(ev.delinq)} (max ${P100(pol.maxDelinq)}) · collections ${pct(ev.tie)} (min ${P100(pol.minTieOut)}) · overlap with Vault B: ${dupes.size}`, ev.cov.delinquency && ev.cov.collections && ev.cov.unique ? 'ok' : 'bad');
+  const r1 = x => Math.round(x * 1000) / 1000;
+  const pv = {program: PROGRAM_ID.slice(0, 16), policyHash: S.chain.policyHash, tapeRoot: S.tape.root, asOf: S.clock, borrowingBase: ev.bb, covenants: ev.cov, metrics: {delinquency: r1(ev.delinq), topOfftakerShare: r1(ev.top.share), collectionsTieOut: r1(ev.tie)}, psiOverlap: dupes.size};
+  const commit = H(PROGRAM_ID + '|' + canon(pv));
+  const proof = {backend, pv, commit, ev, snap: S.tape.n, at: S.clock};
+  if (backend === 'tee'){
+    proof.sig = await signH(SIG.enclave, commit); proof.enclaveOk = await verifyH(SIG.enclave, commit, proof.sig);
+    log(`Signed the public values with the enclave key. The key is bound to measurement ${short(MEASUREMENT)} by the hardware quote`, 'ok');
+    proof.size = 'about 4.6 KB quote, checked once; then a 64-byte signature per attestation';
+  } else {
+    proof.pi = H('groth16-a|' + commit) + H('groth16-b|' + commit);
+    log('Wrapped the zkVM proof in Groth16 for cheap on-chain checking (simulated here)', 'ok');
+    proof.size = '260 bytes';
+  }
+  return proof;
+}
+
+/* ================= simulated chain: VaultGate + vault ================= */
+const ADDR = {gate: '0x7a3f0c19e2b84d55a0c6f1d3b9e2a4c8d5f1c21e', verifier: '0x51c2a7e09b3d4f6a8c1e2d3f4a5b6c7d8e9f0a1b', vault: '0x9e04b6d2c8a1f3e5d7c9b1a3e5f7d9c1b3a5e7f9'};
+function mine(){ S.chain.block += 1 + Math.floor(Math.random() * 3); return S.chain.block; }
+function emit(name, args, ok = true){ S.chain.events.unshift({block: S.chain.block, name, args, ok, t: S.clock}); if (S.chain.events.length > 60) S.chain.events.length = 60; }
+const covBits = cv => ['delinquency', 'concentration', 'collections', 'unique'].map(k => cv[k] ? '1' : '0').join('');
+function gate(now = S.clock){
+  const c = S.chain, L = c.last, why = [];
+  if (!L) why.push('No accepted attestation yet');
+  else {
+    if (L.policyHash !== c.policyHash) why.push('Waiting for a proof under the newly registered policy');
+    const bad = Object.keys(L.cov).filter(k => !L.cov[k]);
+    if (bad.length) why.push('Covenant failed: ' + bad.map(k => COV_LABEL[k].toLowerCase()).join(', '));
+    const age = (now - L.asOf) / HOUR; if (age > c.maxAgeH) why.push(`Last attestation is ${Math.round(age)} h old (limit ${c.maxAgeH} h)`);
+    if (c.drawn > L.bb) why.push(`Drawn ${usd(c.drawn)} is above the borrowing base ${usd(L.bb)}`);
+  }
+  return {open: !why.length, why};
+}
+function submit(proof, mode = 'normal'){
+  const c = S.chain; const pv = mode === 'inflate' ? {...proof.pv, borrowingBase: Math.round(proof.pv.borrowingBase * 1.5)} : proof.pv;
+  const checks = [], blk = mine(), tx = rndHex(32);
+  const fail = (code, label) => { checks.push({label, ok: false}); emit('AttestationRejected', {reason: code}, false); return {ok: false, code, checks, blk, tx}; };
+  const vOk = H(PROGRAM_ID + '|' + canon(pv)) === proof.commit && (proof.backend !== 'tee' || proof.enclaveOk);
+  if (!vOk) return fail('InvalidProof', proof.backend === 'tee' ? 'The enclave signature does not cover these public values' : 'The verifier rejects the proof for these public values');
+  checks.push({label: proof.backend === 'tee' ? 'Enclave signature covers these public values' : 'Verifier accepts the zkVM proof for these public values', ok: true});
+  if (pv.policyHash !== c.policyHash) return fail('PolicyMismatch', 'The proof used a different policy from the registered one');
+  checks.push({label: `Proof used the registered policy (v${c.policyVersion})`, ok: true});
+  if (c.last && pv.asOf <= c.last.asOf) return fail('Replay', 'Not newer than the last accepted attestation');
+  checks.push({label: 'Newer than the last accepted attestation', ok: true});
+  if ((S.clock - pv.asOf) / HOUR > c.maxAgeH) return fail('Stale', `Older than the ${c.maxAgeH} h limit`);
+  checks.push({label: `Fresh: as of ${fmtHM(pv.asOf)} BRT, limit ${c.maxAgeH} h`, ok: true});
+  c.last = {root: pv.tapeRoot, asOf: pv.asOf, bb: pv.borrowingBase, cov: pv.covenants, metrics: pv.metrics, policyHash: pv.policyHash, block: blk, tx, backend: proof.backend, overlap: pv.psiOverlap};
+  S.onchain = {proof, ev: proof.ev, snap: S.snapshots.get(pv.tapeRoot)};
+  S.dpU = Array.from({length: 24}, () => Math.max(-.4999, Math.min(.4999, Math.random() - .5)));
+  emit('AttestationAccepted', {root: pv.tapeRoot, bb: pv.borrowingBase, cov: covBits(pv.covenants)});
+  return {ok: true, checks, blk, tx};
+}
+function draw(amt){
+  if (!(amt > 0)) return {ok: false, msg: 'Enter an amount above zero.'};
+  const g = gate(); mine();
+  if (!g.open){ emit('AdvanceRejected', {amount: amt, reason: 'GateClosed'}, false); return {ok: false, code: 'GateClosed', msg: g.why[0]}; }
+  const head = S.chain.last.bb - S.chain.drawn;
+  if (amt > head){ emit('AdvanceRejected', {amount: amt, reason: 'ExceedsBorrowingBase'}, false); return {ok: false, code: 'ExceedsBorrowingBase', msg: `Only ${usdF(head)} is available under the borrowing base.`}; }
+  S.chain.drawn += amt; S.wallet += amt; emit('Advance', {amount: amt}); return {ok: true, amt};
+}
+function repay(amt){
+  if (!(amt > 0)) return {ok: false, msg: 'Enter an amount above zero.'};
+  if (amt > S.wallet) return {ok: false, code: 'InsufficientBalance', msg: `The treasury wallet holds ${usdF(S.wallet)} USDC.`};
+  mine(); amt = Math.min(amt, S.chain.drawn); S.chain.drawn -= amt; S.wallet -= amt; emit('Repayment', {amount: amt}); return {ok: true, amt};
+}
+
+/* ================= state and the 6-hour cycle ================= */
+let BASE, SIG, S, UI_READY = false;
+function freshState(){
+  const ph = polHash(DEF_POL);
+  return {clock: T0, cycle: 13, step: S?.step || 1, backend: 'tee', busy: false, sc: {}, wallet: 250000, history: [], snapN: 40, snapshots: new Map(),
+    policies: {[ph]: {...DEF_POL}}, draft: {...DEF_POL},
+    chain: {block: 4182316, policyHash: ph, policyVersion: 3, maxAgeH: 24, last: null, drawn: 8000000, events: []},
+    ui: {eps: 1, view: 'investor', kind: 'All', q: '', showTrue: false}, att: {}, psi: null, proof: null, pending: null, onchain: null, dpU: []};
+}
+function noteFor(proof, res, prevBB, g){
+  if (!res.ok) return 'Attestation rejected: ' + res.code;
+  const bad = Object.keys(proof.pv.covenants).filter(k => !proof.pv.covenants[k]);
+  let s = bad.length ? 'Failed: ' + bad.map(k => COV_LABEL[k].toLowerCase()).join(', ') : 'All covenants pass';
+  if (prevBB != null && Math.abs(proof.pv.borrowingBase - prevBB) >= 1000) s += ` · base ${proof.pv.borrowingBase > prevBB ? 'up' : 'down'} ${usd(Math.abs(proof.pv.borrowingBase - prevBB))}`;
+  if (!g.open && !bad.length) s += ' · ' + g.why[0];
+  return s;
+}
+async function runCycle(opt = {}){
+  if (S.busy) return; S.busy = true; if (UI_READY) renderBusy();
+  try {
+    S.clock += (opt.hours ?? 6) * HOUR; S.cycle++;
+    if (opt.hours !== 0) await pace(250);
+    commitTape(); await attest(); await runPsi();
+    const prevBB = S.chain.last?.bb;
+    const logs = []; const proof = await prove(S.backend, (t, c) => logs.push([t, c])); S.proof = proof;
+    S.cycleLog = {cycle: S.cycle, t: S.clock, lines: logs};
+    const res = submit(proof); S.pending = null; S.sc.stale = false;
+    const g = gate();
+    S.history.unshift({cycle: S.cycle, t: S.clock, bb: S.chain.last?.bb, open: g.open, note: (opt.prefix ? opt.prefix + ' · ' : '') + noteFor(proof, res, prevBB, g)});
+  } finally { S.busy = false; }
+  if (UI_READY) renderAll();
+}
+async function bootstrap(){
+  S = freshState();
+  emit('PolicyRegistered', {version: 3, hash: S.chain.policyHash});
+  await runCycle({hours: 0});
+  const bb = S.chain.last.bb;
+  S.history.push({cycle: 13, t: T0 - 6 * HOUR, bb: bb - 31000, open: true, note: 'All covenants pass'}, {cycle: 12, t: T0 - 12 * HOUR, bb: bb - 57000, open: true, note: 'All covenants pass'});
+}
+
+/* ================= step catalogue ================= */
+const LANES = [
+  {k: 'client', name: 'Browsers', sub: 'Screens people use'},
+  {k: 'server', name: 'Private servers', sub: 'Originator, data sources, keeper bot'},
+  {k: 'prover', name: 'Prover', sub: 'TEE enclave or zkVM'},
+  {k: 'chain', name: 'Chain', sub: 'Contracts on an EVM testnet or Arc'}
+];
+const GROUPS = [{label: 'Setup', a: 1, b: 1}, {label: 'Every cycle (6 h)', a: 2, b: 6}, {label: 'Using the result', a: 7, b: 8}, {label: 'Watching', a: 9, b: 9}];
+const SCEN = [
+  {k: 'offtaker', title: 'Offtaker cap breach', desc: 'Trader D assigns its contracts to Trader C, which then backs about 42% of eligible receivables.'},
+  {k: 'rj', title: 'Issuer files for judicial recovery', desc: 'Grupo Três Rios (MT) files. Its 4 financial CPRs drop out; its 4 physical CPRs stay eligible.'},
+  {k: 'collections', title: 'Collections miss the controlled account', desc: 'Buyers pay into the originator’s operating account instead. 27 of 70 payments never land.'},
+  {k: 'stale', title: 'Attestations stop', desc: 'No proof arrives for 30 hours. Nothing is submitted, and the gate closes by itself.'},
+  {k: 'dup', title: 'Same contract in two vaults', desc: 'One offtake contract is also financed in Vault B. No registry tracks these.'}
+];
+const STEPS = [
+  {n: 1, key: 'policy', title: 'Encode the term sheet as a policy', short: 'Encode the policy', role: 'Laser risk team', lane: 'client', ghosts: [{lane: 'chain', label: 'Policy hash stored'}],
+    app: 'Policy Studio', hosts: [['client', 'Laser risk team’s browser'], ['chain', 'writes to VaultGate']],
+    summary: 'Laser’s risk team turns the term sheet into rules a machine can check: what counts as eligible, the caps, the advance rate and the covenants. Only a hash of the policy goes on-chain, and every later proof must match it.',
+    who: 'Laser’s structuring and risk team, who sign off the term sheet. They come back here only when the terms change.',
+    topo: [{row: [['client', 'Policy Studio', 'browser app']]}, {arrow: 'policy hash and maximum proof age, signed by Laser’s multisig'}, {row: [['chain', 'VaultGate', 'stores the hash and rejects proofs made under any other policy']]}],
+    vis: [['Policy text', ['Laser', 'Originator', 'Investors']], ['Policy hash', ['Public']]],
+    prod: 'Written in Concentric’s policy language, extended with sums, ratios, group-bys and dates. A change goes through Laser’s governance, such as a multisig or a timelock, and the gate stays shut until a proof under the new policy arrives.',
+    live: () => 'v' + S.chain.policyVersion + (polHash(S.draft) !== S.chain.policyHash ? ' · draft' : '')},
+  {n: 2, key: 'tape', title: 'Commit the loan tape', short: 'Commit the tape', role: 'Originator ops (Brazil team)', lane: 'server', ghosts: [{lane: 'client', label: 'Ops screen'}],
+    app: 'Originator node · tape snapshots', hosts: [['server', 'originator’s own server'], ['client', 'ops screen on their network']],
+    summary: 'The originator salts and hashes every receivable and builds a Merkle tree. The full tape never leaves its server. The 32-byte root is the only part that becomes public, and it pins down exactly which tape a proof is about.',
+    who: 'The originator’s operations team. In practice this runs automatically from their loan system every cycle.',
+    topo: [{row: [['server', 'Loan system', 'CPRs and offtake contracts']]}, {arrow: 'export, stays inside the originator'}, {row: [['server', 'Originator node', 'salts, hashes, builds the tree'], ['client', 'Ops screen', 'internal browser']]}, {arrow: 'only the 32-byte root, published with the proof in step 6'}, {row: [['chain', 'VaultGate', 'keeps the root of each accepted proof']]}],
+    vis: [['Full tape: names, tax IDs, amounts', ['Originator']], ['Salts', ['Originator', 'Prover, inside', 'Auditor, per record']], ['Tape root', ['Public']]],
+    prod: 'A connector to the originator’s loan system or a scheduled CSV drop. The salts stop anyone from confirming a guess about a record from the root.',
+    live: () => S.tape.records.length + ' records'},
+  {n: 3, key: 'attest', title: 'Collect signed confirmations', short: 'Collect confirmations', role: 'Registry, offtakers, bank, court feed', lane: 'server', ghosts: [],
+    app: 'Confirmation requests', hosts: [['server', 'originator node and four outside servers']],
+    summary: 'Four independent sources each confirm only the facts they hold, and sign what they confirm. The prover trusts these signatures, not the originator’s word.',
+    who: 'Four outside organizations, each running a small signing service: a registration participant at B3 or CERC, the offtakers, the bank that holds the controlled collection account, and a court-filings data vendor.',
+    topo: [{row: [['server', 'Originator node', 'sends each source only its own IDs']]}, {arrow: 'scoped ID lists'}, {row: [['server', 'Registry agent', 'B3 or CERC'], ['server', 'Offtakers', 'Traders A to E'], ['server', 'Collection bank', 'controlled account'], ['server', 'Court feed', 'filings vendor']]}, {arrow: 'signed statements (ECDSA)'}, {row: [['server', 'Originator node', 'holds them for the prover']]}],
+    vis: [['CPR IDs', ['Originator', 'Registry agent']], ['Offtake contracts', ['Originator', 'Each trader, own contracts only']], ['Expected payments', ['Originator', 'Collection bank']], ['Issuer tax IDs, hashed', ['Originator', 'Court feed']]],
+    prod: 'Registry: a B3 or CERC registration participant, or a zkTLS session against its portal where there is no API. Offtakers: a signed confirmation from each trader. Bank: a statement for the controlled account. Court feed: a filings data vendor. On this page all four are mock signers with real ECDSA keys.',
+    live: () => SRC_KEYS.filter(w => S.att[w] && S.att[w].ok).length + '/4 signed'},
+  {n: 4, key: 'psi', title: 'Check for duplicates across vaults', short: 'Duplicate check', role: 'Vault A and B provers', lane: 'prover', ghosts: [],
+    app: 'PSI session · Vault A and Vault B', hosts: [['prover', 'two enclaves, peer to peer']],
+    summary: 'Brazilian registries already stop a CPR from being pledged twice, but no registry tracks offtake contracts. The provers of two vaults Laser governs compare their contract lists with private set intersection. Each side learns the overlap and nothing else.',
+    who: 'No person. The provers of two vaults that Laser governs run it each cycle, and Laser’s risk team sees the result.',
+    topo: [{row: [['prover', 'Vault A prover', 'this vault'], ['prover', 'Vault B prover', 'second originator']]}, {arrow: 'blinded IDs, both directions', a: '⇅'}, {row: [['prover', 'Overlap only', 'the count goes into the step 5 proof']]}],
+    vis: [['Vault A contract IDs', ['Vault A']], ['Vault B contract IDs', ['Vault B']], ['Overlapping IDs', ['Both governors']], ['Overlap count', ['Public']]],
+    prod: 'An elliptic-curve PSI library inside each enclave. Laser is already the hub across its vaults, so there is no outside network to recruit. This page runs the same protocol with BigInt arithmetic and toy parameters.',
+    live: () => S.psi ? 'overlap ' + S.psi.hits.length : ''},
+  {n: 5, key: 'prove', title: 'Evaluate the policy and prove it', short: 'Evaluate and prove', role: 'Verification agent (Choose K)', lane: 'prover', ghosts: [],
+    app: 'Prover · prover-01', hosts: [['prover', 'TEE enclave or zkVM, run by Choose K']],
+    summary: 'One evaluator applies the registered policy to the tape, the signed confirmations and the duplicate check. It releases only the borrowing base, the covenant results and the tape root, plus a proof that it ran correctly.',
+    who: 'The verification agent, a service Choose K operates. Nobody touches it during a cycle.',
+    topo: [{row: [['server', 'Originator node', 'tape, salts, signed statements']]}, {arrow: 'encrypted to the enclave, or private zkVM inputs'}, {row: [['prover', 'Evaluator', 'the same Rust code in a TEE or a zkVM']]}, {arrow: 'public values and proof'}, {row: [['server', 'Keeper bot', 'submits them in step 6']]}],
+    vis: [['Tape, salts, signed statements', ['Prover, inside']], ['Borrowing base, covenant results, root', ['Public']]],
+    prod: 'One Rust evaluator compiled two ways: for a TEE (Intel TDX or AMD SEV-SNP) as the fast path, and for a zkVM (SP1 or RISC Zero) when nobody should have to trust the hardware. Both must use the policy hash registered in step 1.',
+    live: () => S.proof ? 'base ' + usd(S.proof.pv.borrowingBase, 1) : ''},
+  {n: 6, key: 'gate', title: 'Verify on-chain and set the gate', short: 'Verify, set the gate', role: 'Keeper bot, VaultGate contract', lane: 'chain', ghosts: [{lane: 'server', label: 'Keeper bot submits'}],
+    app: 'Explorer · VaultGate', hosts: [['chain', 'simulated chain (EVM testnet or Arc)'], ['server', 'keeper bot']],
+    summary: 'A keeper bot sends the proof to VaultGate. The contract checks the proof, the policy hash and the timestamp, then stores the new borrowing base. Whether advances are allowed is a view function that anyone can call.',
+    who: 'A keeper bot submits; anyone can read the result. Nobody can change the borrowing base without a valid proof, including the keeper.',
+    topo: [{row: [['server', 'Keeper bot', 'any party can run one']]}, {arrow: 'submitAttestation(proof, public values)'}, {row: [['chain', 'Verifier', 'checks the proof'], ['chain', 'VaultGate', 'checks policy and freshness, stores the base']]}, {arrow: 'the vault calls gateOpen() on every draw'}, {row: [['chain', 'Vault', 'step 7']]}],
+    vis: [['Everything on this screen', ['Public']]],
+    prod: 'A stock verifier contract (the zkVM’s Groth16 verifier, or a registry of attested enclave keys) plus a small VaultGate contract on an EVM testnet or Arc. The properties listed on this screen are what the vault-assurance review would prove with Certora.',
+    live: () => { const g = gate(); return {text: g.open ? 'gate open' : 'gate closed', cls: g.open ? 'ok' : 'bad'}; }},
+  {n: 7, key: 'draw', title: 'Draw an advance', short: 'Draw an advance', role: 'Originator treasury', lane: 'client', ghosts: [{lane: 'chain', label: 'Vault pays USDC'}],
+    app: 'Vault app · SPV A treasury', hosts: [['client', 'treasury’s browser wallet'], ['chain', 'vault contract']],
+    summary: 'The originator’s treasury asks the vault for USDC. The vault calls gateOpen() and pays only when the gate is open and the amount fits under the proven borrowing base.',
+    who: 'The originator’s treasury team, drawing on the facility.',
+    topo: [{row: [['client', 'Treasury wallet', 'browser']]}, {arrow: 'draw(amount)'}, {row: [['chain', 'Vault', 'asks VaultGate before paying']]}, {arrow: 'USDC'}, {row: [['off', 'Authorized FX institution', 'USDC to reais, then Pix to farmers; outside the demo']]}],
+    vis: [['Draw and repayment amounts', ['Public']]],
+    prod: 'An ERC-4626-style vault that calls gateOpen() before every payout. Turning USDC into reais is an FX operation in Brazil and must go through an authorized institution, so the demo stops at the USDC transfer.',
+    live: () => 'drawn ' + usd(S.chain.drawn, 1)},
+  {n: 8, key: 'views', title: 'What each observer sees', short: 'Three views', role: 'Public, investors, auditor', lane: 'client', ghosts: [{lane: 'chain', label: 'Reads the result'}, {lane: 'server', label: 'Record openings'}],
+    app: 'Vault page · three views', hosts: [['client', 'each viewer’s own browser'], ['chain', 'reads VaultGate'], ['server', 'openings from the originator']],
+    summary: 'One attestation, three levels of detail. The public sees pass or fail. Investors see aggregates with calibrated noise. An auditor can open any single record and check it against the on-chain root.',
+    who: 'Anyone; the vault’s investors; and the auditor or rating agency.',
+    topo: [{row: [['chain', 'VaultGate', 'root, base, covenant results']]}, {arrow: 'read by everyone'}, {row: [['client', 'Public', 'block explorer'], ['client', 'Investor', 'dashboard'], ['client', 'Auditor', 'browser']]}, {arrow: 'record, salt and Merkle path, to the auditor only', a: '↑'}, {row: [['server', 'Originator node', 'answers opening requests']]}],
+    vis: [['Root, base, pass or fail', ['Public']], ['Noisy aggregates', ['Investors']], ['Chosen records in full', ['Auditor, under NDA']]],
+    prod: 'Aggregates are computed inside the prover with OpenDP-style noise, so investors cannot strip the noise out. Record openings go straight from the originator to the auditor and never touch the chain.',
+    live: () => ''},
+  {n: 9, key: 'monitor', title: 'Monitor and run scenarios', short: 'Monitor', role: 'Laser risk team', lane: 'client', ghosts: [{lane: 'chain', label: 'Reads events'}],
+    app: 'Risk monitor · Vault A', hosts: [['client', 'Laser risk team’s browser'], ['chain', 'reads VaultGate events']],
+    summary: 'Laser’s risk team watches the gate and the covenants. The five scenario buttons are the scripted moments for the meeting. Each one changes the data and runs a full cycle, so you can watch steps 2 to 6 react.',
+    who: 'Laser’s risk team, which governs the vault.',
+    topo: [{row: [['chain', 'VaultGate', 'events and stored results']]}, {arrow: 'read'}, {row: [['client', 'Risk monitor', 'browser']]}, {arrow: 'the next cycle runs steps 2 to 6 again', a: '↻'}, {row: [['server', 'Originator node', 'step 2']]}],
+    vis: [['Which covenant failed, and by how much', ['Laser']], ['Which farmer or contract', ['Only through an auditor opening']]],
+    prod: 'Alerts on gate changes by email or chat. In the meeting, these five scenarios are the scripted moments from the proposal.',
+    live: () => { const n = SCEN.filter(s => s.k !== 'stale' && S.sc[s.k]).length; return n ? n + ' scenario' + (n > 1 ? 's' : '') + ' on' : 'baseline'; }}
+];
+
+/* ================= small HTML helpers ================= */
+const chipH = ([loc, t]) => `<span class="chip${loc === 'off' ? ' off' : ''}" data-loc="${loc}"><i></i>${esc(t)}</span>`;
+const pillH = (cls, t, big) => `<span class="pill ${cls}${big ? ' big' : ''}">${esc(t)}</span>`;
+const metricH = (l, v) => `<div class="metric"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+const logH = lines => lines.map(([t, c]) => `<div class="${c || ''}">${esc(t)}</div>`).join('');
+function topoH(t){ return '<div class="topo">' + t.map(x => x.row ? `<div class="topo-row">${x.row.map(([loc, b, s]) => `<div class="tnode${loc === 'off' ? ' dash' : ''}" data-loc="${loc}"><b>${esc(b)}</b><small>${esc(s)}</small></div>`).join('')}</div>` : `<div class="tarrow"><span class="a">${x.a || '↓'}</span><span>${esc(x.arrow)}</span></div>`).join('') + '</div>'; }
+function visH(v){ return '<div class="vis">' + v.map(([what, who]) => `<div><b>${esc(what)}</b><span>${who.map(w => `<span class="aud${w === 'Public' ? ' pub' : ''}">${esc(w)}</span>`).join('')}</span></div>`).join('') + '</div>'; }
+
+/* ================= flow chart ================= */
+function buildFlow(){
+  let h = '<svg id="flowSvg" aria-hidden="true"></svg>';
+  LANES.forEach((l, i) => { h += `<div class="stripe" data-loc="${l.k}" data-li="${i}"></div><div class="lane-label" data-loc="${l.k}" data-li="${i}"><span class="ln"><i></i>${l.name}</span><span class="ls">${l.sub}</span></div>`; });
+  GROUPS.forEach(g => { h += `<div class="group-label" data-a="${g.a}" data-b="${g.b}">${g.label}</div>`; });
+  STEPS.forEach(s => {
+    h += `<button class="node" data-step="${s.n}" data-loc="${s.lane}" aria-label="Step ${s.n}: ${esc(s.title)}"><span class="nm"><i></i>${pad(s.n, 2)}</span><span class="t">${esc(s.short)}</span><span class="r">${esc(s.role)}</span><span class="live" data-live="${s.n}"></span></button>`;
+    s.ghosts.forEach(g => { h += `<button class="ghost" data-step="${s.n}" data-loc="${g.lane}" tabindex="-1">${esc(g.label)}</button>`; });
+  });
+  h += '<div class="rail rh"></div><div class="rail rv"></div>';
+  $('#flow').innerHTML = h;
+  layoutFlow();
+}
+let ORIENT = '';
+function layoutFlow(){
+  const f = $('#flow'), w = f.clientWidth, hz = w >= 980;
+  ORIENT = hz ? 'h' : 'v'; f.dataset.orient = ORIENT;
+  f.style.gridTemplateColumns = hz ? 'minmax(96px,124px) repeat(9,minmax(0,1fr)) 16px' : '18px repeat(4,minmax(0,1fr)) 14px';
+  f.style.gridTemplateRows = hz ? 'auto repeat(4,minmax(70px,auto)) 24px' : 'auto repeat(9,minmax(54px,auto)) 24px';
+  const li = k => LANES.findIndex(l => l.k === k);
+  const put = (el, r, c) => { el.style.gridRow = r; el.style.gridColumn = c; };
+  $$('.stripe', f).forEach(el => { const i = +el.dataset.li; hz ? put(el, i + 2, '2 / 11') : put(el, '2 / 11', i + 2); });
+  $$('.lane-label', f).forEach(el => { const i = +el.dataset.li; hz ? put(el, i + 2, 1) : put(el, 1, i + 2); });
+  $$('.group-label', f).forEach(el => { const a = +el.dataset.a, b = +el.dataset.b; hz ? put(el, 1, `${a + 1} / ${b + 2}`) : put(el, `${a + 1} / ${b + 2}`, 1); });
+  $$('.node, .ghost', f).forEach(el => { const s = +el.dataset.step, i = li(el.dataset.loc); hz ? put(el, i + 2, s + 1) : put(el, s + 1, i + 2); });
+  hz ? (put($('.rh', f), 6, '2 / 11'), put($('.rv', f), '2 / 6', 11)) : (put($('.rh', f), 11, '2 / 6'), put($('.rv', f), '2 / 11', 6));
+  drawArrows();
+}
+function rounded(p, r){
+  let d = `M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`;
+  for (let i = 1; i < p.length - 1; i++){
+    const [x0, y0] = p[i - 1], [x1, y1] = p[i], [x2, y2] = p[i + 1];
+    const d1 = Math.hypot(x1 - x0, y1 - y0) || 1, d2 = Math.hypot(x2 - x1, y2 - y1) || 1, rr = Math.min(r, d1 / 2, d2 / 2);
+    d += ` L${(x1 + (x0 - x1) * rr / d1).toFixed(1)},${(y1 + (y0 - y1) * rr / d1).toFixed(1)} Q${x1.toFixed(1)},${y1.toFixed(1)} ${(x1 + (x2 - x1) * rr / d2).toFixed(1)},${(y1 + (y2 - y1) * rr / d2).toFixed(1)}`;
+  }
+  const l = p[p.length - 1]; return d + ` L${l[0].toFixed(1)},${l[1].toFixed(1)}`;
+}
+function drawArrows(){
+  const f = $('#flow'), svg = $('#flowSvg'); if (!f || !svg) return;
+  const fb = f.getBoundingClientRect(), hz = ORIENT === 'h';
+  svg.setAttribute('width', fb.width); svg.setAttribute('height', fb.height); svg.setAttribute('viewBox', `0 0 ${fb.width} ${fb.height}`);
+  const R = el => { const r = el.getBoundingClientRect(); return {l: r.left - fb.left, t: r.top - fb.top, r: r.right - fb.left, b: r.bottom - fb.top, cx: (r.left + r.right) / 2 - fb.left, cy: (r.top + r.bottom) / 2 - fb.top}; };
+  const node = n => R($(`.node[data-step="${n}"]`, f));
+  let o = '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker><marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahA"/></marker></defs>';
+  STEPS.forEach(s => s.ghosts.forEach(g => {
+    const a = node(s.n), b = R($(`.ghost[data-step="${s.n}"][data-loc="${g.lane}"]`, f));
+    const p = hz ? (b.t > a.b ? [[a.cx, a.b], [a.cx, b.t]] : [[a.cx, a.t], [a.cx, b.b]]) : (b.l > a.r ? [[a.r, a.cy], [b.l, a.cy]] : [[a.l, a.cy], [b.r, a.cy]]);
+    o += `<path class="glink" d="${rounded(p, 0)}"/>`;
+  }));
+  for (let n = 1; n < 9; n++){
+    const a = node(n), b = node(n + 1); let p;
+    if (hz){ const mx = (a.r + b.l) / 2; p = Math.abs(a.cy - b.cy) < 2 ? [[a.r, a.cy], [b.l - 1, a.cy]] : [[a.r, a.cy], [mx, a.cy], [mx, b.cy], [b.l - 1, b.cy]]; }
+    else { const my = (a.b + b.t) / 2; p = Math.abs(a.cx - b.cx) < 2 ? [[a.cx, a.b], [a.cx, b.t - 1]] : [[a.cx, a.b], [a.cx, my], [b.cx, my], [b.cx, b.t - 1]]; }
+    o += `<path class="seq" d="${rounded(p, 7)}" marker-end="url(#ah)"/>`;
+  }
+  const a = node(9), b = node(2), rh = R($('.rh', f)), rv = R($('.rv', f)); let p, lx, ly;
+  if (hz){ p = [[a.r, a.cy], [rv.cx, a.cy], [rv.cx, rh.cy], [b.cx, rh.cy], [b.cx, b.b + 1]]; lx = (b.cx + rv.cx) / 2; ly = rh.cy - 5; }
+  else { p = [[a.cx, a.b], [a.cx, rh.cy], [rv.cx, rh.cy], [rv.cx, b.cy], [b.r + 1, b.cy]]; lx = (a.cx + rv.cx) / 2; ly = rh.cy - 5; }
+  o += `<path class="loop" d="${rounded(p, 9)}" marker-end="url(#ahA)"/><text class="loop-t" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle">next cycle, every 6 h</text>`;
+  svg.innerHTML = o;
+}
+function renderFlowLive(){
+  STEPS.forEach(s => {
+    const el = $(`.live[data-live="${s.n}"]`); if (!el) return;
+    const v = s.live(); const o = typeof v === 'string' ? {text: v, cls: ''} : v;
+    el.textContent = o.text; el.className = 'live ' + (o.cls || '');
+  });
+  $$('.node').forEach(el => el.setAttribute('aria-current', +el.dataset.step === S.step ? 'step' : 'false'));
+  $$('.ghost').forEach(el => el.classList.toggle('on', +el.dataset.step === S.step));
+}
+
+/* ================= status band ================= */
+function renderStatus(){
+  const g = gate(), L = S.chain.last, head = L ? Math.max(0, L.bb - S.chain.drawn) : 0, age = L ? (S.clock - L.asOf) / HOUR : null;
+  $('#status').innerHTML = `
+    <div><span class="k">Vault A · soy receivables</span><span class="v">${pillH(g.open ? 'ok' : 'bad', g.open ? 'GATE OPEN' : 'GATE CLOSED')}</span></div>
+    <div><span class="k">Borrowing base</span><span class="v">${L ? usdF(L.bb) : '—'}</span></div>
+    <div><span class="k">Drawn</span><span class="v">${usdF(S.chain.drawn)}</span></div>
+    <div><span class="k">Available now</span><span class="v">${usdF(g.open ? head : 0)}</span></div>
+    <div class="hide-sm"><span class="k">Last proof</span><span class="v">${age === null ? '—' : Math.round(age) + ' h ago'} · cycle ${S.cycle}</span></div>
+    <div class="hide-sm"><span class="k">Simulated clock</span><span class="v">${fmtT(S.clock)}</span></div>
+    <div class="acts"><button class="btn primary" data-act="cycle" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Running cycle…' : 'Run next cycle (+6 h)'}</button><button class="btn" data-act="reset" ${S.busy ? 'disabled' : ''}>Reset demo</button></div>`;
+}
+
+/* ================= detail panel ================= */
+function renderDetail(){
+  const s = STEPS[S.step - 1];
+  const grp = GROUPS.find(g => s.n >= g.a && s.n <= g.b).label;
+  $('#detail').innerHTML = `
+    <div class="d-head">
+      <div class="d-t"><p class="eyebrow">Step ${s.n} of 9 · ${esc(grp)}</p><h2>${esc(s.title)}</h2><p class="d-sum">${esc(s.summary)}</p></div>
+      <div class="row"><button class="btn" data-act="prev" ${s.n === 1 ? 'disabled' : ''}>← Step ${s.n - 1 || 1}</button><button class="btn" data-act="next" ${s.n === 9 ? 'disabled' : ''}>Step ${Math.min(9, s.n + 1)} →</button></div>
+    </div>
+    <div class="detail">
+      <div class="win">
+        <div class="win-bar"><span class="dots" aria-hidden="true"><span></span><span></span><span></span></span><span class="win-title">${esc(s.app)}</span><span class="win-host">${s.hosts.map(chipH).join('')}</span></div>
+        <div class="win-body" id="console"></div>
+      </div>
+      <aside class="side">
+        <section class="sb"><h3>Who uses it</h3><p>${esc(s.who)}</p></section>
+        <section class="sb"><h3>Where it runs</h3>${topoH(s.topo)}</section>
+        <section class="sb"><h3>Who sees what</h3>${visH(s.vis)}</section>
+        <section class="sb"><h3>In production</h3><p>${esc(s.prod)}</p></section>
+      </aside>
+    </div>`;
+  renderConsole();
+}
+function renderConsole(){ const s = STEPS[S.step - 1], el = $('#console'); if (!el) return; el.innerHTML = VIEWS[s.key](); if (MOUNT[s.key]) MOUNT[s.key](); }
+function renderAll(){ if (!UI_READY) return; renderStatus(); renderFlowLive(); renderConsole(); }
+function renderBusy(){ renderStatus(); $$('[data-busy]').forEach(b => { b.disabled = S.busy; }); }
+function select(n, scroll){
+  n = Math.max(1, Math.min(9, n)); const changed = n !== S.step; S.step = n;
+  renderFlowLive(); renderDetail();
+  if (location.hash !== '#step-' + n){ try { history.replaceState(null, '', '#step-' + n); } catch (e) { /* hash routing is optional */ } }
+  if (scroll && changed){ const d = $('#detail'), top = d.getBoundingClientRect().top; if (top > innerHeight * 0.55 || top < 0) d.scrollIntoView({behavior: RM ? 'auto' : 'smooth', block: 'start'}); }
+}
+const VIEWS = {}, MOUNT = {};
+
+/* ================= step 1: Policy Studio ================= */
+const PARAMS = [
+  {k: 'advanceRate', label: 'Advance rate', min: 50, max: 95, step: 1, pct: true},
+  {k: 'maxTenor', label: 'Maximum tenor', min: 30, max: 180, step: 5, unit: ' days'},
+  {k: 'maxDpd', label: 'Still eligible when late by up to', min: 0, max: 90, step: 5, unit: ' days'},
+  {k: 'offtakerCap', label: 'Single-offtaker cap', min: 10, max: 50, step: 1, pct: true},
+  {k: 'obligorCap', label: 'Single-issuer cap', min: 1, max: 15, step: 0.5, pct: true},
+  {k: 'maxDelinq', label: 'Maximum delinquency (over 30 days late)', min: 1, max: 15, step: 0.5, pct: true},
+  {k: 'minTieOut', label: 'Minimum collections tie-out', min: 80, max: 100, step: 1, pct: true},
+  {k: 'maxAgeH', label: 'Maximum proof age', min: 6, max: 72, step: 6, unit: ' h'}
+];
+const pval = (p, v) => p.pct ? P100(v) : v + p.unit;
+VIEWS.policy = () => {
+  const d = S.draft;
+  return `<div class="cols2">
+    <div class="stack"><p class="eyebrow">Terms</p>
+      ${PARAMS.map(p => `<div class="param"><label for="p-${p.k}">${p.label}</label><output id="o-${p.k}" for="p-${p.k}">${pval(p, d[p.k])}</output><input type="range" id="p-${p.k}" data-param="${p.k}" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.pct ? +(d[p.k] * 100).toFixed(1) : d[p.k]}"></div>`).join('')}
+      <label class="toggle"><input type="checkbox" id="p-keepFisica" ${d.keepFisica ? 'checked' : ''}>Keep physical CPRs of issuers in judicial recovery</label>
+    </div>
+    <div class="stack" id="pol-right">${polRight()}</div>
+  </div>
+  <div class="stack"><p class="eyebrow">Compiled policy, as the prover loads it</p><pre class="code" id="pol-text">${esc(polText(d))}</pre></div>`;
+};
+function polRight(){
+  const d = S.draft, dh = polHash(d), same = dh === S.chain.policyHash;
+  const ev = evaluate(S.tape.records, attView(), new Set(S.psi ? S.psi.hits : []), d);
+  const bad = Object.keys(ev.cov).filter(k => !ev.cov[k]);
+  return `<p class="eyebrow">Policy hash</p>
+    <dl class="kv"><dt>Draft</dt><dd>${short(dh, 12, 8)}</dd><dt>On-chain, v${S.chain.policyVersion}</dt><dd>${short(S.chain.policyHash, 12, 8)}</dd></dl>
+    <div>${same ? pillH('ok', 'Draft matches the on-chain policy') : pillH('warn', 'Draft not registered yet')}</div>
+    <div class="callout"><b>Effect on the current tape</b>
+      <span>Borrowing base under this ${same ? 'policy' : 'draft'}: <span class="mono">${usdF(ev.bb)}</span>${!same && S.chain.last ? ` (on-chain now <span class="mono">${usdF(S.chain.last.bb)}</span>)` : ''}</span>
+      <span>${ev.eligN} of ${ev.n} records eligible. ${bad.length ? `<b style="color:var(--bad)">${bad.map(k => COV_LABEL[k]).join(', ')} would fail.</b>` : 'All covenants would pass.'}</span></div>
+    <div class="row"><button class="btn primary" data-act="register" ${same ? 'disabled' : ''}>Register on-chain</button><button class="btn" data-act="discard" ${same ? 'disabled' : ''}>Discard draft</button></div>
+    ${S.ui.polMsg ? `<div class="log">${S.ui.polMsg}</div>` : ''}
+    <p class="small muted">Registering closes the gate until a proof made under the new policy is accepted. <b>Run next cycle</b> at the top produces one.</p>`;
+}
+
+/* ================= step 2: Originator node ================= */
+VIEWS.tape = () => {
+  const t = S.tape, R = t.records, n = k => R.filter(r => r.k === k).length, onchain = S.chain.last && S.chain.last.root === t.root;
+  return `<div class="metrics">${metricH('Records', R.length)}${metricH('Face value', usd(sum(R)))}${metricH('CPR física / financeira', `${n('F')} / ${n('N')}`)}${metricH('Offtake contracts', n('O'))}</div>
+  <div class="row"><input id="tape-q" class="input" type="search" placeholder="Search ID, issuer, state or trader" value="${esc(S.ui.q)}" aria-label="Search the tape" style="flex:1 1 200px"><div class="seg" role="group" aria-label="Filter by kind">${['All', 'CPR física', 'CPR financeira', 'Offtake contract'].map(k => `<button data-act="kind" data-v="${k}" aria-pressed="${S.ui.kind === k}">${k === 'Offtake contract' ? 'Offtake' : k}</button>`).join('')}</div></div>
+  <div class="tbl-wrap" id="tape-tbl">${tapeTable()}</div>
+  <div class="row between"><div class="stack" style="gap:2px;min-width:0"><p class="eyebrow">Snapshot #${t.n} · ${fmtT(t.at)}</p><p class="mono small" style="overflow-wrap:anywhere">root ${short(t.root, 16, 12)}</p><p class="small muted">${R.length} leaves, tree depth ${t.levels.length - 1}, hashed in this browser in ${Math.max(1, t.ms).toFixed(0)} ms. ${onchain ? 'This root is the one on-chain.' : 'Not on-chain yet; it gets there through steps 5 and 6.'}</p></div><button class="btn primary" data-act="commit" data-busy ${S.busy ? 'disabled' : ''}>Salt and commit a new snapshot</button></div>
+  <div class="callout"><b>What leaves this server</b><span>Step 3: each source gets only the IDs it must confirm. Step 5: the prover gets the tape inside its enclave, or as private zkVM input. Step 6: only the 32-byte root becomes public.</span></div>`;
+};
+function tapeTable(){
+  const q = S.ui.q.trim().toLowerCase(), t = S.tape;
+  const rows = t.records.map((r, i) => [r, i]).filter(([r]) => (S.ui.kind === 'All' || r.kind === S.ui.kind) && (!q || [r.id, r.issuer, r.uf, r.offtaker].some(x => x.toLowerCase().includes(q))));
+  const body = rows.map(([r, i]) => `<tr><td class="m">${r.id}</td><td>${r.kind}</td><td>${esc(r.issuer)}</td><td>${r.uf}</td><td>${r.offtaker}</td><td class="num">${usdF(r.amount)}</td><td>${fmtD(r.maturity)}</td><td class="num">${r.dpd || '—'}</td><td class="m">${t.leaves[i].slice(0, 10)}…</td></tr>`).join('');
+  return `<table class="tbl"><thead><tr><th>ID</th><th>Kind</th><th>Issuer or seller</th><th>State</th><th>Offtaker</th><th class="num">Amount</th><th>Maturity</th><th class="num">Days late</th><th>Salted leaf hash</th></tr></thead><tbody>${body || '<tr><td colspan="9" class="muted">No records match.</td></tr>'}</tbody></table>`;
+}
+
+/* ================= step 3: confirmations ================= */
+const SRC = {
+  reg: {name: 'Registry agent', org: 'Registration participant at B3 or CERC', checks: 'Each CPR is registered and SPV A holds the lien.'},
+  off: {name: 'Offtakers', org: 'Traders A to E, each signing for its own contracts', checks: 'Each trader confirms the offtake contracts that name it.'},
+  bank: {name: 'Collection bank', org: 'Bank that holds the controlled account', checks: 'Which expected payments landed in the controlled collection account.'},
+  rj: {name: 'Court-filings feed', org: 'Judicial-recovery data vendor', checks: 'Whether any issuer has filed for judicial recovery.'}
+};
+function srcSummary(w){
+  const a = S.att[w]; if (!a) return {recv: '—', res: '—'};
+  const it = a.st.items;
+  if (w === 'reg'){ const c = {}; it.forEach(x => { c[x[1]] = (c[x[1]] || 0) + 1; }); return {recv: `${it.length} CPR IDs`, res: `${c['SPV A'] || 0} liens held by SPV A · ${c['Another lender'] || 0} held by another lender · ${c['not found'] || 0} not found`}; }
+  if (w === 'off'){ const per = {}; let ok = 0; it.forEach(x => { per[x[1]] = (per[x[1]] || 0) + 1; if (x[2] === 'confirmed') ok++; }); return {recv: `${it.length} contracts: ` + Object.entries(per).sort().map(([k, v]) => k.replace('Trader ', '') + ' ' + v).join(' · '), res: `${ok} confirmed · ${it.length - ok} pending`}; }
+  if (w === 'bank'){ let e = 0, l = 0, n = 0; it.forEach(x => { e += x[1]; l += x[2]; if (x[2] > 0) n++; }); return {recv: `${it.length} expected payments from the last 30 days`, res: `${n} of ${it.length} landed · ${usd(l)} of ${usd(e)} (${pct(l / e)})`}; }
+  const f = it.filter(x => x[1] === 'filed');
+  return {recv: `${it.length} issuer tax IDs, hashed`, res: f.length ? `${f.length} filed: ${f.map(x => BASE.byId[BASE.taxToId[x[0]]].name).join(', ')}` : 'No filings'};
+}
+VIEWS.attest = () => `<div class="row between"><p class="small muted" style="max-width:52ch">Requests go out for snapshot #${S.tape.n}. Each source signs a hash of its statement with its own ECDSA key.</p><button class="btn primary" data-act="attestAll" data-busy ${S.busy ? 'disabled' : ''}>Request all four again</button></div>
+  <div class="grid2">${SRC_KEYS.map(w => { const a = S.att[w], s = srcSummary(w), stale = a && a.snap !== S.tape.n;
+    return `<div class="src"><div class="row between"><h3>${SRC[w].name}</h3>${chipH(['server', 'its own server'])}</div>
+      <span class="small muted">${SRC[w].org}</span>
+      <span><span class="lbl">Receives</span><br>${esc(s.recv)}</span>
+      <span><span class="lbl">Checks</span><br>${SRC[w].checks}</span>
+      <span><span class="lbl">Signs</span><br>${esc(s.res)}</span>
+      <span class="sig">key ${SIG[w].fp} · signature ${a ? short(a.sig, 14, 10) : '—'}</span>
+      <div class="row between">${a ? (stale ? pillH('warn', 'for old snapshot #' + a.snap) : a.ok ? pillH('ok', SIG[w].real ? 'signature valid' : 'signature valid (simulated)') : pillH('bad', 'invalid')) : ''}<button class="btn" data-act="attestOne" data-v="${w}" data-busy ${S.busy ? 'disabled' : ''}>Ask again</button></div></div>`; }).join('')}</div>
+  <div class="stack"><label class="small" for="reg-q">Look up one CPR in the registry agent’s signed statement</label><div class="row"><input id="reg-q" class="input mono" list="cpr-list" placeholder="CPR-26-00…" value="${esc(S.ui.regQ || '')}" style="flex:1 1 200px"><button class="btn" data-act="regLookup">Look up</button></div><datalist id="cpr-list">${S.tape.records.filter(r => r.k !== 'O').slice(0, 150).map(r => `<option value="${r.id}">`).join('')}</datalist><div id="reg-out">${S.ui.regOut || ''}</div></div>`;
+function regLookup(){
+  const q = (S.ui.regQ || '').trim(), it = S.att.reg.st.items.find(x => x[0] === q), r = S.tape.records.find(x => x.id === q);
+  S.ui.regOut = !q ? logH([['Enter a CPR ID, or pick one from the list.', 'dim']]) : it
+    ? logH([[`${q}: ${it[1] === 'not found' ? 'not found in any registry' : `registered at ${it[2]}, lien holder ${it[1]}`}${r ? ` · ${r.kind} · ${usdF(r.amount)}` : ''}`, it[1] === 'SPV A' ? 'ok' : 'bad']])
+    : logH([[`${q} is not in the registry statement for snapshot #${S.att.reg.snap}. Offtake contracts are not in any registry.`, 'bad']]);
+  const el = $('#reg-out'); if (el) el.innerHTML = S.ui.regOut;
+}
+
+/* ================= step 4: PSI ================= */
+VIEWS.psi = () => {
+  const A = vaultA(), B = vaultB(), r = S.psi, fresh = r && r.key === psiKey();
+  const list = (L, n) => L.slice(0, 5).map(x => `<span class="${x === BASE.dupId && S.sc.dup ? 'dup' : ''}">${x}</span>`).join('<br>') + `<br>… and ${n - 5} more`;
+  const bShow = S.sc.dup ? [BASE.dupId, ...BASE.vaultB.slice(0, 4)] : BASE.vaultB.slice(0, 5);
+  return `<div class="psi">
+    <div class="pbox"><p class="eyebrow">Vault A · this vault</p><h3>${A.length} offtake contracts</h3><p class="ids">${list(A, A.length)}</p></div>
+    <div class="pmid" aria-hidden="true">⇄</div>
+    <div class="pbox"><p class="eyebrow">Vault B · second originator</p><h3>${B.length} offtake contracts</h3><p class="ids">${list(bShow, B.length)}</p></div>
+  </div>
+  <div class="row between"><label class="toggle"><input type="checkbox" id="psi-dup" ${S.sc.dup ? 'checked' : ''}>Put ${BASE.dupId} in Vault B as well (scenario 5)</label><button class="btn primary" data-act="psiRun" data-busy ${S.busy ? 'disabled' : ''}>Run PSI now</button></div>
+  <div class="log" id="psi-log">${S.ui.psiLog || logH([[r ? `Last run ${fmtHM(r.at)} BRT with ${r.nA} and ${r.nB} IDs: overlap ${r.hits.length}.${fresh ? '' : ' The lists have changed since, so run it again.'}` : 'Not run yet.', 'dim']])}</div>
+  <div class="result">${r && fresh ? (r.hits.length ? pillH('bad', 'Overlap: ' + r.hits.length) + `<span>${r.hits.join(', ')} is financed in both vaults. Both governors learn that ID and nothing else about the other list.</span>` : pillH('ok', 'Overlap: 0') + '<span>Neither vault learned anything about the other’s contracts beyond the count.</span>') : ''}</div>
+  <div class="callout"><b>Why this is private</b><span>Each side raises its hashed IDs to a secret exponent before sending them. Only IDs held by both sides end up equal once both exponents are applied, and everything else stays unreadable to the other side. This page runs the real protocol over a toy 255-bit prime field${r ? `: ${r.ops} modular exponentiations in ${r.ms.toFixed(0)} ms` : ''}.</span></div>`;
+};
+async function doPsi(){
+  if (S.busy) return; S.busy = true; renderBusy();
+  const lines = [], out = () => { const el = $('#psi-log'); if (el) el.innerHTML = logH(lines); };
+  const A = vaultA(), B = vaultB();
+  lines.push([`Vault A hashes its ${A.length} IDs and raises each to its secret exponent a`, 'go']); out(); await pace(350);
+  const res = await runPsi(async (stage, x, y) => {
+    if (stage === 1){ lines.push([`A to B: ${x.length} blinded values, for example 0x${bhex(x[0]).slice(0, 20)}…`, 'msg']); out(); await pace(450); }
+    if (stage === 2){ lines.push([`B to A: A’s values raised to B’s secret b, for example 0x${bhex(x[0]).slice(0, 20)}…, plus B’s own ${y.length} IDs raised to b`, 'msg']); out(); await pace(450); }
+    if (stage === 3){ lines.push(['A raises B’s values to a and compares the two double-blinded lists', 'go']); out(); await pace(350); }
+  });
+  lines.push([`Overlap: ${res.hits.length}${res.hits.length ? ' (' + res.hits.join(', ') + ')' : ''}. ${res.ops} exponentiations in ${res.ms.toFixed(0)} ms`, res.hits.length ? 'bad' : 'ok']);
+  S.ui.psiLog = logH(lines); S.busy = false; renderAll();
+}
+
+/* ================= step 5: prover ================= */
+VIEWS.prove = () => {
+  const pr = S.proof, tee = S.backend === 'tee';
+  const def = S.cycleLog ? logH([[`Automatic run in cycle ${S.cycleLog.cycle}, ${fmtHM(S.cycleLog.t)} BRT:`, 'dim'], ...S.cycleLog.lines]) : '';
+  return `<div class="row between"><div class="row"><span class="small muted">Backend</span><div class="seg" role="group" aria-label="Proving backend"><button data-act="backend" data-v="tee" aria-pressed="${tee}">TEE enclave</button><button data-act="backend" data-v="zkvm" aria-pressed="${!tee}">zkVM</button></div></div><button class="btn primary" data-act="prove" data-busy ${S.busy ? 'disabled' : ''}>Evaluate and prove</button></div>
+  <div class="io">
+    <div class="stack" style="gap:4px"><p class="eyebrow">Private inputs · stay inside the ${tee ? 'enclave' : 'prover'}</p><ul class="ilist"><li>Snapshot #${S.tape.n}: ${S.tape.records.length} records and their salts</li><li>4 signed statements from step 3</li><li>The overlap result from step 4</li></ul></div>
+    <div class="stack" style="gap:4px"><p class="eyebrow">Public inputs</p><ul class="ilist"><li>Policy hash ${short(S.chain.policyHash)}</li><li>Tape root ${short(S.tape.root)}</li><li>Evaluator ${tee ? 'measurement ' + short(MEASUREMENT) : 'program ID ' + short(PROGRAM_ID)}</li></ul></div>
+  </div>
+  <div class="progress" aria-hidden="true"><div id="prove-bar"></div></div>
+  <div class="log" id="prove-log">${S.ui.proveLog || def}</div>
+  ${pr ? proofHTML(pr) : ''}
+  <details class="more"><summary>TEE or zkVM?</summary><div class="tbl-wrap" style="max-height:none"><table class="tbl"><thead><tr><th></th><th>TEE enclave</th><th>zkVM</th></tr></thead><tbody>
+    <tr><td>Time per proof</td><td>seconds</td><td>minutes on a GPU</td></tr>
+    <tr><td>You trust</td><td>the chip vendor and its attestation</td><td>the math and the verifier contract</td></tr>
+    <tr><td>On-chain check</td><td>one signature, after a one-time quote check</td><td>one Groth16 verification</td></tr>
+    <tr><td>Good fit</td><td>the 6-hour cycle</td><td>month-end reports investors rely on</td></tr></tbody></table></div></details>`;
+};
+function proofHTML(pr){
+  const ev = pr.ev, pv = pr.pv, L = S.chain.last, accepted = L && L.root === pv.tapeRoot && L.asOf === pv.asOf;
+  const rows = Object.entries(ev.ex).filter(([, v]) => v.n).map(([k, v]) => `<tr><td>${REASON[k]}</td><td class="num">${v.n}</td><td class="num">${usdF(v.amt)}</td></tr>`).join('');
+  const shown = {...pv, policyHash: short(pv.policyHash, 10, 6), tapeRoot: short(pv.tapeRoot, 10, 6), asOf: fmtT(pv.asOf)};
+  return `<div class="cols2">
+    <div class="stack"><p class="eyebrow">Excluded records</p><div class="tbl-wrap" style="max-height:none"><table class="tbl"><thead><tr><th>Reason</th><th class="num">Records</th><th class="num">Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="3" class="muted">None</td></tr>'}</tbody></table></div>
+      <dl class="kv"><dt>Eligible</dt><dd>${usdF(ev.E)}</dd><dt>Above caps</dt><dd>${usdF(ev.exOff + ev.exIss)}</dd><dt>Advance rate</dt><dd>${P100(ev.p.advanceRate)}</dd><dt>Borrowing base</dt><dd><b>${usdF(ev.bb)}</b></dd></dl></div>
+    <div class="stack"><p class="eyebrow">Public values, the only output</p><pre class="code">${esc(JSON.stringify(shown, null, 2))}</pre>
+      <dl class="kv"><dt>Proof</dt><dd>${pr.backend === 'tee' ? 'enclave signature ' + short(pr.sig, 10, 6) : 'π ' + short(pr.pi, 10, 6) + ' (simulated)'}</dd><dt>Size</dt><dd>${pr.size}</dd><dt>Status</dt><dd>${accepted ? 'accepted on-chain (step 6)' : S.pending === pr ? 'waiting for step 6' : 'not submitted'}</dd></dl></div>
+  </div>`;
+}
+async function doProve(){
+  if (S.busy) return; S.busy = true; renderBusy();
+  S.clock += 10 * 60e3;
+  const got = []; const proof = await prove(S.backend, (t, c) => got.push([t, c]));
+  const lines = [], out = () => { const e = $('#prove-log'); if (e) e.innerHTML = logH(lines); };
+  const last = got.pop();
+  for (const l of got){ lines.push(l); out(); await pace(170); }
+  const tee = S.backend === 'tee', n = tee ? 4 : 14;
+  lines.push([tee ? 'Running inside the enclave' : 'Proving 14 segments on a GPU prover. This takes about 4 minutes in practice; it is sped up here', 'go']); out();
+  for (let i = 1; i <= n; i++){ const b = $('#prove-bar'); if (b) b.style.width = (100 * i / n) + '%'; await pace(tee ? 90 : 170); }
+  lines.push(last); lines.push(['Ready for step 6. The keeper bot can now submit it to VaultGate.', 'go']); out();
+  S.proof = proof; S.pending = proof; S.ui.proveLog = logH(lines); S.busy = false; renderAll();
+}
+
+/* ================= step 6: VaultGate ================= */
+const SOL = `contract VaultGate {
+  bytes32 public policyHash;   // set by Laser's multisig in step 1
+  uint64  public maxAge;       // seconds
+  Attestation public last;     // tapeRoot, asOf, borrowingBase, covenants
+  uint256 public drawn;        // kept in step with the Vault
+
+  function submitAttestation(bytes calldata proof, bytes calldata pub) external {
+    verifier.verify(PROGRAM_ID, pub, proof);          // reverts: InvalidProof
+    Attestation memory a = abi.decode(pub, (Attestation));
+    if (a.policyHash != policyHash) revert PolicyMismatch();
+    if (a.asOf <= last.asOf) revert Replay();
+    if (block.timestamp - a.asOf > maxAge) revert Stale();
+    last = a;
+    emit AttestationAccepted(a.tapeRoot, a.borrowingBase, a.covenants);
+  }
+
+  function gateOpen() public view returns (bool) {
+    return last.policyHash == policyHash
+        && last.covenants == ALL_PASS
+        && block.timestamp - last.asOf <= maxAge
+        && drawn <= last.borrowingBase;
+  }
+}`;
+const evArgs = e => { const a = e.args; if (e.name === 'AttestationAccepted') return `root ${short(a.root, 6, 4)} · base ${usd(a.bb, 2)} · covenants ${a.cov}`; if (e.name === 'PolicyRegistered') return `v${a.version} · ${short(a.hash, 6, 4)}`; if (a.amount != null) return usdF(a.amount) + (a.reason ? ' · ' + a.reason : ''); return a.reason || ''; };
+function eventsH(n, only){
+  const ev = S.chain.events.filter(e => !only || only.includes(e.name)).slice(0, n);
+  if (!ev.length) return '<p class="small muted">None yet.</p>';
+  return `<div class="tbl-wrap" style="max-height:none"><table class="tbl"><thead><tr><th>Block</th><th>Time (BRT)</th><th>Event</th><th>Details</th></tr></thead><tbody>${ev.map(e => `<tr${e.ok ? '' : ' style="color:var(--bad)"'}><td class="m">${e.block.toLocaleString('en-US')}</td><td>${fmtHM(e.t)}</td><td>${e.name}</td><td class="m">${esc(evArgs(e))}</td></tr>`).join('')}</tbody></table></div>`;
+}
+VIEWS.gate = () => {
+  const c = S.chain, L = c.last, g = gate(), pend = S.pending;
+  return `<div class="row between"><div><p class="eyebrow">Contract</p><h3 class="mono">VaultGate ${ADDR.gate.slice(0, 8)}…${ADDR.gate.slice(-4)}</h3></div>${pillH(g.open ? 'ok' : 'bad', 'gateOpen() → ' + g.open, true)}</div>
+  <dl class="kv"><dt>policyHash</dt><dd>${short(c.policyHash, 10, 6)} · v${c.policyVersion}</dd><dt>maxAge</dt><dd>${c.maxAgeH} h</dd><dt>last.tapeRoot</dt><dd>${L ? short(L.root, 10, 6) : '—'}</dd><dt>last.asOf</dt><dd>${L ? fmtT(L.asOf) : '—'}</dd><dt>last.borrowingBase</dt><dd>${L ? usdF(L.bb) : '—'}</dd><dt>last.covenants</dt><dd>${L ? covBits(L.cov) + ' (delinquency, concentration, collections, duplicates)' : '—'}</dd><dt>drawn</dt><dd>${usdF(c.drawn)}</dd><dt>block</dt><dd>${c.block.toLocaleString('en-US')}</dd></dl>
+  ${g.open ? '' : `<div class="callout"><b>Why gateOpen() is false</b>${g.why.map(w => `<span>${esc(w)}</span>`).join('')}</div>`}
+  <div class="stack"><p class="eyebrow">Keeper bot</p>
+    <p class="small">${pend ? `A proof from step 5 is waiting: ${pend.backend === 'tee' ? 'TEE' : 'zkVM'}, borrowing base ${usdF(pend.pv.borrowingBase)}, as of ${fmtHM(pend.pv.asOf)} BRT.` : 'No new proof is waiting. Run step 5 or the next cycle. You can still try the two attacks below.'}</p>
+    <div class="row">${pend ? '<button class="btn primary" data-act="submit">Submit attestation</button>' : ''}<button class="btn warnb" data-act="inflate" ${S.proof ? '' : 'disabled'}>Submit with the base inflated 50%</button><button class="btn warnb" data-act="replay" ${S.onchain ? '' : 'disabled'}>Replay the last accepted proof</button></div>
+    <div class="log" id="gate-log">${S.ui.gateLog || logH([['Submission results appear here.', 'dim']])}</div></div>
+  <div class="stack"><p class="eyebrow">Recent events</p>${eventsH(7)}</div>
+  <details class="more"><summary>VaultGate logic, simplified</summary><pre class="code">${esc(SOL)}</pre></details>
+  <div class="callout"><b>Properties the vault-assurance review would prove with Certora</b><span>No draw succeeds while gateOpen() is false.</span><span>After any draw, drawn stays at or below the borrowing base.</span><span>Only a proof under the registered policy hash can change the borrowing base.</span><span>An attestation can never be replayed, because asOf strictly increases.</span></div>`;
+};
+function doSubmit(mode){
+  const pr = mode === 'normal' ? S.pending : mode === 'replay' ? (S.onchain && S.onchain.proof) : S.proof; if (!pr) return;
+  const res = submit(pr, mode === 'inflate' ? 'inflate' : 'normal');
+  const what = mode === 'inflate' ? 'the proof, with the borrowing base in the public values raised 50%' : mode === 'replay' ? 'a proof that was already accepted' : 'the proof and its public values';
+  const lines = [[`Tx ${short(res.tx, 8, 6)}, block ${res.blk.toLocaleString('en-US')}: submitAttestation with ${what}`, 'go'], ...res.checks.map(c => [c.label, c.ok ? 'ok' : 'bad'])];
+  if (res.ok){ S.pending = null; const g = gate(); lines.push([`Accepted. Borrowing base is now ${usdF(S.chain.last.bb)}; gateOpen() returns ${g.open}${g.open ? '' : ' (' + g.why[0] + ')'}`, g.open ? 'ok' : 'bad']); S.history.unshift({cycle: S.cycle, t: S.clock, bb: S.chain.last.bb, open: g.open, note: 'Submitted by hand from step 6'}); }
+  else lines.push([`Reverted with ${res.code}. Nothing on-chain changed.`, 'bad']);
+  S.ui.gateLog = logH(lines); renderAll();
+}
+
+/* ================= step 7: draw an advance ================= */
+VIEWS.draw = () => {
+  const g = gate(), L = S.chain.last, head = L ? Math.max(0, L.bb - S.chain.drawn) : 0;
+  return `<div class="metrics">${metricH('Gate', pillH(g.open ? 'ok' : 'bad', g.open ? 'OPEN' : 'CLOSED'))}${metricH('Borrowing base', usd(L ? L.bb : 0))}${metricH('Drawn', usd(S.chain.drawn))}${metricH('Available', usd(g.open ? head : 0))}${metricH('Wallet USDC', usd(S.wallet))}</div>
+  <form class="stack" id="draw-form" autocomplete="off"><label class="small" for="draw-amt">Amount in USDC</label>
+    <div class="row"><input id="draw-amt" class="input mono" inputmode="numeric" placeholder="500,000" value="${esc(S.ui.amt || '')}" style="flex:1 1 150px"><button type="button" class="btn" data-act="fill" data-v="0.25">25%</button><button type="button" class="btn" data-act="fill" data-v="0.5">50%</button><button type="button" class="btn" data-act="fill" data-v="1">All available</button></div>
+    <div class="row"><button type="button" class="btn primary" data-act="draw">Request advance</button><button type="button" class="btn" data-act="repay">Repay this amount</button></div></form>
+  <div class="log" id="draw-log">${S.ui.drawLog || logH([[g.open ? `Up to ${usdF(head)} can be drawn right now.` : 'The gate is closed, so the vault will refuse any draw: ' + g.why[0], 'dim']])}</div>
+  <div class="callout off"><b>After the USDC arrives (outside the demo)</b><span>The treasury converts USDC to reais through an authorized FX institution, because stablecoin trades count as FX operations in Brazil, then pays farmers by Pix. Collections later land in the controlled account that the bank confirms in step 3.</span></div>
+  <div class="stack"><p class="eyebrow">Vault transactions</p>${eventsH(6, ['Advance', 'Repayment', 'AdvanceRejected'])}</div>`;
+};
+
+/* ================= step 8: three observers ================= */
+VIEWS.views = () => { const t = S.ui.view; return `<div class="tabs" role="tablist">${[['public', 'Public'], ['investor', 'Investor'], ['auditor', 'Auditor']].map(([k, l]) => `<button role="tab" data-act="vtab" data-v="${k}" aria-selected="${t === k}">${l}</button>`).join('')}</div>${t === 'public' ? viewPublic() : t === 'investor' ? viewInvestor() : viewAuditor()}`; };
+function viewPublic(){
+  const L = S.chain.last, g = gate();
+  return `<p class="small muted">What anyone sees on a block explorer, with no account and no permission.</p>
+  <dl class="kv"><dt>Tape root</dt><dd>${short(L.root, 14, 10)}</dd><dt>As of</dt><dd>${fmtT(L.asOf)}</dd><dt>Borrowing base</dt><dd>${usdF(L.bb)}</dd><dt>Drawn</dt><dd>${usdF(S.chain.drawn)}</dd><dt>Covenants</dt><dd>${Object.keys(L.cov).map(k => COV_LABEL[k] + (L.cov[k] ? ' ✓' : ' ✕')).join(' · ')}</dd><dt>Gate</dt><dd>${g.open ? 'open' : 'closed'}</dd><dt>Policy</dt><dd>v${S.chain.policyVersion} · ${short(S.chain.policyHash, 10, 6)}</dd><dt>Proof</dt><dd>${L.backend === 'tee' ? 'TEE signature' : 'zkVM proof'}, checked in block ${L.block.toLocaleString('en-US')}</dd></dl>
+  <div class="callout"><b>Not visible to the public</b><span>Record IDs, farmer and company names, tax IDs, individual amounts, and which trader or farmer stands behind any figure.</span></div>`;
+}
+function viewInvestor(){
+  return `<div class="row"><label class="small" for="eps">Privacy budget ε</label><input type="range" id="eps" min="-1" max="0.7" step="0.01" value="${Math.log10(S.ui.eps).toFixed(2)}" style="flex:1 1 150px;accent-color:var(--fg)"><output id="eps-out" class="mono small" for="eps">${S.ui.eps.toFixed(2)}</output><label class="toggle"><input type="checkbox" id="show-true" ${S.ui.showTrue ? 'checked' : ''}>Show true values (explainer only)</label></div>
+  <div id="inv-body" class="stack">${invBody()}</div>`;
+}
+function invBody(){
+  const ev = S.onchain.ev, eps = S.ui.eps, C = 150000, bS = C / eps, bC = 1 / eps; let u = 0; const U = () => S.dpU[u++ % S.dpU.length] || 0;
+  const offs = Object.keys(ev.byOff).sort(), offN = offs.map(k => ({k, t: ev.byOff[k], n: Math.max(0, ev.byOff[k] + lap(U(), bS))})), offTot = offN.reduce((s, x) => s + x.n, 0) || 1, offTrue = offN.reduce((s, x) => s + x.t, 0) || 1;
+  const LL = ['Current', '1–30 days', '31–60 days', '61+ days'], lateN = ev.late.map((t, i) => ({k: LL[i], t, n: Math.max(0, Math.round(t + lap(U(), bC)))}));
+  const ufN = Object.keys(ev.byUF).sort((a, b) => ev.byUF[b] - ev.byUF[a]).map(k => ({k, t: ev.byUF[k], n: Math.max(0, ev.byUF[k] + lap(U(), bS))}));
+  const bars = (rows, fmt, tfmt) => { const max = Math.max(...rows.map(r => Math.max(r.n, r.t))) * 1.06 || 1; return `<div class="bars">${rows.map(r => `<div class="bar"><span>${esc(r.k)}</span><span class="track"><span class="fill" style="width:${(100 * r.n / max).toFixed(1)}%"></span>${S.ui.showTrue ? `<span class="tv" style="left:${(100 * r.t / max).toFixed(1)}%" title="true value"></span>` : ''}</span><span class="val">${fmt(r)}${S.ui.showTrue ? `<br><span class="muted">true ${tfmt(r)}</span>` : ''}</span></div>`).join('')}</div>`; };
+  return `<p class="small muted">Lower ε means more noise and more privacy. At ε = ${eps.toFixed(2)}, each dollar figure moves by about ±${usd(bS)} and each count by about ±${bC.toFixed(1)}. Each record counts at most ${usd(C)} toward any sum.</p>
+    <div class="stack"><p class="eyebrow">Eligible receivables by offtaker</p>${bars(offN, r => pct(r.n / offTot), r => pct(r.t / offTrue))}</div>
+    <div class="stack"><p class="eyebrow">Records by days late</p>${bars(lateN, r => r.n + ' records', r => String(r.t))}</div>
+    <div class="stack"><p class="eyebrow">Pool by state</p>${bars(ufN, r => usd(r.n, 2), r => usd(r.t, 2))}</div>
+    <div class="callout"><b>Tied to the on-chain attestation</b><span>These figures come from the same evaluation that set the borrowing base to ${usdF(S.chain.last.bb)} in block ${S.chain.last.block.toLocaleString('en-US')}. The noise is added inside the prover, so investors cannot remove it.</span></div>`;
+}
+function viewAuditor(){
+  return `<p class="small muted">The auditor asks the originator to open specific records. The originator sends back the record, its salt and its Merkle path, and the auditor’s browser checks them against the root stored on-chain.</p>
+  <div class="row"><input id="aud-id" class="input mono" list="aud-list" placeholder="Record ID" value="${esc(S.ui.audId || '')}" style="flex:1 1 170px"><button class="btn" data-act="audRandom">Pick a random record</button><button class="btn primary" data-act="audOpen">Request opening</button></div>
+  <datalist id="aud-list">${S.onchain.snap.records.slice(0, 150).map(r => `<option value="${r.id}">`).join('')}</datalist>
+  <div id="aud-out">${S.ui.audOut || ''}</div>`;
+}
+function audOpen(tamper){
+  const snap = S.onchain.snap, id = (S.ui.audId || '').trim(), i = snap.records.findIndex(r => r.id === id);
+  if (i < 0){ S.ui.audOut = logH([[`${id || 'That ID'} is not in snapshot #${snap.n}, the snapshot whose root is on-chain.`, 'bad']]); return; }
+  const r = snap.records[i], salt = snap.salts[i], path = mpath(snap.levels, i), rr = tamper ? {...r, amount: r.amount + 1} : r;
+  const leaf = leafOf(rr, salt), ok = mverify(leaf, path, S.chain.last.root);
+  S.ui.audOut = `<div class="cols2"><div class="stack"><p class="eyebrow">Sent by the originator node, to you only</p><dl class="kv"><dt>ID</dt><dd>${r.id}</dd><dt>Kind</dt><dd>${r.kind}</dd><dt>Issuer</dt><dd>${esc(r.issuer)} (${r.uf})</dd><dt>Tax ID hash</dt><dd>${BASE.byId[r.issuerId].tax}</dd><dt>Offtaker</dt><dd>${r.offtaker}</dd><dt>Amount</dt><dd>${usdF(rr.amount)}${tamper ? ' (changed by $1)' : ''}</dd><dt>Issued</dt><dd>${fmtD(r.issued)}</dd><dt>Matures</dt><dd>${fmtD(r.maturity)}</dd><dt>Days late</dt><dd>${r.dpd}</dd><dt>Salt</dt><dd>${salt}</dd></dl></div>
+  <div class="stack"><p class="eyebrow">Merkle path, ${path.length} hashes</p><div class="path">${path.map((p, k) => `<div><span>${k + 1} · ${p.side === 'L' ? 'left' : 'right'}</span><span>${p.h.slice(0, 28)}…</span></div>`).join('')}</div>
+    <div class="result">${ok ? pillH('ok', 'Matches the on-chain root') : pillH('bad', 'Does not match the on-chain root')}<span class="mono small">${short(S.chain.last.root, 10, 6)}</span></div>
+    <span class="small muted">Computed in your browser: the salted leaf ${short(leaf, 8, 6)}, then ${path.length} hashes up to the root.</span>
+    ${tamper ? '<button class="btn" data-act="audOpen">Check the true record again</button>' : '<button class="btn" data-act="audTamper">Change the amount by $1 and check again</button>'}</div></div>`;
+}
+
+/* ================= step 9: risk monitor ================= */
+VIEWS.monitor = () => {
+  const g = gate(), c = S.chain, L = c.last, pol = S.policies[c.policyHash], m = L.metrics, age = (S.clock - L.asOf) / HOUR, head = Math.max(0, L.bb - c.drawn);
+  const lights = [
+    ['Delinquency', L.cov.delinquency, `${pct(m.delinquency)} of pool · max ${P100(pol.maxDelinq)}`],
+    ['Concentration', L.cov.concentration, `top offtaker ${pct(m.topOfftakerShare)} · cap ${P100(pol.offtakerCap)}`],
+    ['Collections tie-out', L.cov.collections, `${pct(m.collectionsTieOut)} landed · min ${P100(pol.minTieOut)}`],
+    ['No duplicates', L.cov.unique, `overlap with Vault B: ${L.overlap}`],
+    ['Freshness', age <= c.maxAgeH, `${Math.round(age)} h since the last proof · max ${c.maxAgeH} h`],
+    ['No overadvance', c.drawn <= L.bb, `drawn ${usd(c.drawn)} · base ${usd(L.bb)}`]
+  ];
+  return `<div class="row between">${pillH(g.open ? 'ok' : 'bad', g.open ? 'GATE OPEN' : 'GATE CLOSED', true)}<span class="small muted" style="max-width:60ch">${g.open ? `Advances allowed, up to ${usdF(head)} more.` : esc(g.why.join(' · '))}</span></div>
+  <div class="covs">${lights.map(([t, ok, d]) => `<div class="cov${ok ? '' : ' bad'}"><span class="dot"></span><div><b>${t}</b><span>${esc(d)}</span></div></div>`).join('')}</div>
+  <div class="stack"><p class="eyebrow">The five scripted moments · each runs a full cycle</p><div class="scen">${SCEN.map((s, i) => { const on = s.k !== 'stale' && !!S.sc[s.k]; return `<button class="scard" data-act="scen" data-v="${s.k}" data-busy ${S.busy ? 'disabled' : ''} aria-pressed="${on}"><span class="sn">${i + 1}</span><b>${s.title}</b><span>${on ? 'On. Click to resolve it and run a cycle.' : s.desc}</span></button>`; }).join('')}</div>
+  <div class="row"><button class="btn" data-act="cycle" data-busy ${S.busy ? 'disabled' : ''}>Routine cycle (+6 h)</button><button class="btn" data-act="reset" data-busy ${S.busy ? 'disabled' : ''}>Reset to baseline</button><span class="small muted" id="mon-msg">${S.busy ? 'Running steps 2 to 6…' : ''}</span></div></div>
+  <div class="stack"><p class="eyebrow">Cycle history</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Time (BRT)</th><th class="num">Cycle</th><th class="num">Base</th><th>Gate</th><th>What happened</th></tr></thead><tbody>${S.history.slice(0, 14).map(h => `<tr><td>${fmtHM(h.t)}</td><td class="num">${h.cycle}</td><td class="num">${h.bb != null ? usd(h.bb, 2) : '—'}</td><td>${pillH(h.open ? 'ok' : 'bad', h.open ? 'open' : 'closed')}</td><td style="white-space:normal;min-width:220px">${esc(h.note)}</td></tr>`).join('')}</tbody></table></div></div>
+  <p class="small muted">The monitor shows which covenant failed and by how much, never which farmer or contract. Record-level detail takes an auditor opening (step 8).</p>`;
+};
+async function doScen(k){
+  if (S.busy) return;
+  if (k === 'stale'){
+    S.clock += 30 * HOUR; S.sc.stale = true; const g = gate();
+    S.history.unshift({cycle: S.cycle, t: S.clock, bb: S.chain.last.bb, open: g.open, note: 'Scenario: no proof for 30 h · ' + (g.why.find(w => w.includes(' h old')) || g.why[0] || 'gate still open')});
+    renderAll(); return;
+  }
+  const on = !S.sc[k], s = SCEN.find(x => x.k === k); S.sc[k] = on;
+  S.ui.psiLog = ''; S.ui.proveLog = ''; S.ui.gateLog = '';
+  await runCycle({prefix: (on ? 'Scenario: ' : 'Resolved: ') + s.title.toLowerCase()});
+}
+
+/* ================= events ================= */
+async function doAttest(which){ if (S.busy) return; S.busy = true; renderBusy(); S.clock += 2 * 60e3; await pace(250); await attest(which); S.busy = false; renderAll(); }
+const amtOf = () => Math.round(parseFloat(String(S.ui.amt || '').replace(/[^0-9.]/g, '')) || 0);
+document.addEventListener('click', async e => {
+  const nd = e.target.closest('.node, .ghost'); if (nd){ select(+nd.dataset.step, true); return; }
+  const b = e.target.closest('button[data-act]'); if (!b || b.disabled) return;
+  const v = b.dataset.v;
+  switch (b.dataset.act){
+    case 'prev': select(S.step - 1, false); break;
+    case 'next': select(S.step + 1, false); break;
+    case 'cycle': S.ui.proveLog = ''; S.ui.gateLog = ''; S.ui.psiLog = ''; await runCycle(); break;
+    case 'reset': await resetDemo(); break;
+    case 'register': {
+      const h = polHash(S.draft); S.policies[h] = {...S.draft}; S.chain.policyHash = h; S.chain.policyVersion++; S.chain.maxAgeH = S.draft.maxAgeH;
+      const blk = mine(); emit('PolicyRegistered', {version: S.chain.policyVersion, hash: h});
+      S.ui.polMsg = logH([[`Block ${blk.toLocaleString('en-US')}: VaultGate.setPolicy(${short(h, 6, 4)}, ${S.draft.maxAgeH} h), signed by Laser’s multisig`, 'ok'], [`The gate stays closed until a proof under policy v${S.chain.policyVersion} is accepted`, 'go']]);
+      renderAll(); break;
+    }
+    case 'discard': S.draft = {...S.policies[S.chain.policyHash]}; S.ui.polMsg = ''; renderAll(); break;
+    case 'kind': S.ui.kind = v; renderConsole(); break;
+    case 'commit': S.clock += 2 * 60e3; commitTape(); renderAll(); break;
+    case 'attestAll': await doAttest(SRC_KEYS); break;
+    case 'attestOne': await doAttest([v]); break;
+    case 'regLookup': regLookup(); break;
+    case 'psiRun': await doPsi(); break;
+    case 'backend': S.backend = v; renderConsole(); break;
+    case 'prove': S.ui.proveLog = ''; await doProve(); break;
+    case 'submit': doSubmit('normal'); break;
+    case 'inflate': doSubmit('inflate'); break;
+    case 'replay': doSubmit('replay'); break;
+    case 'fill': { const L = S.chain.last, head = L ? Math.max(0, L.bb - S.chain.drawn) : 0; S.ui.amt = String(Math.floor(head * +v / 1000) * 1000); const i = $('#draw-amt'); if (i) i.value = S.ui.amt; break; }
+    case 'draw': case 'repay': {
+      const amt = amtOf(), res = b.dataset.act === 'draw' ? draw(amt) : repay(amt);
+      S.ui.drawLog = logH(res.ok ? [[`${b.dataset.act === 'draw' ? 'Advance of ' + usdF(res.amt) + ' paid to the treasury' : 'Repayment of ' + usdF(res.amt) + ' received'} in block ${S.chain.block.toLocaleString('en-US')}. Drawn is now ${usdF(S.chain.drawn)}.`, 'ok']] : [[res.code ? `Reverted with ${res.code}. ${res.msg}` : res.msg, 'bad']]);
+      renderAll(); break;
+    }
+    case 'vtab': S.ui.view = v; renderConsole(); break;
+    case 'audRandom': { const R = S.onchain.snap.records; S.ui.audId = R[Math.floor(Math.random() * R.length)].id; audOpen(false); renderConsole(); break; }
+    case 'audOpen': audOpen(false); renderConsole(); break;
+    case 'audTamper': audOpen(true); renderConsole(); break;
+    case 'scen': await doScen(v); break;
+  }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.param){
+    const p = PARAMS.find(x => x.k === t.dataset.param); S.draft[p.k] = p.pct ? +t.value / 100 : +t.value;
+    $('#o-' + p.k).textContent = pval(p, S.draft[p.k]); $('#pol-text').textContent = polText(S.draft); $('#pol-right').innerHTML = polRight(); renderFlowLive();
+  }
+  if (t.id === 'eps'){ S.ui.eps = Math.pow(10, +t.value); $('#eps-out').textContent = S.ui.eps.toFixed(2); $('#inv-body').innerHTML = invBody(); }
+  if (t.id === 'tape-q'){ S.ui.q = t.value; $('#tape-tbl').innerHTML = tapeTable(); }
+  if (t.id === 'draw-amt') S.ui.amt = t.value;
+  if (t.id === 'reg-q') S.ui.regQ = t.value;
+  if (t.id === 'aud-id') S.ui.audId = t.value;
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'p-keepFisica'){ S.draft.keepFisica = t.checked; $('#pol-text').textContent = polText(S.draft); $('#pol-right').innerHTML = polRight(); renderFlowLive(); }
+  if (t.id === 'psi-dup'){ S.sc.dup = t.checked; S.ui.psiLog = ''; renderAll(); }
+  if (t.id === 'show-true'){ S.ui.showTrue = t.checked; $('#inv-body').innerHTML = invBody(); }
+});
+document.addEventListener('submit', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target.id === 'reg-q'){ e.preventDefault(); regLookup(); }
+  if (e.target.id === 'aud-id'){ e.preventDefault(); audOpen(false); renderConsole(); }
+  if (e.target.id === 'draw-amt') e.preventDefault();
+});
+const stepFromHash = () => { const m = /^#step-([1-9])$/.exec(location.hash); return m ? +m[1] : 0; };
+window.addEventListener('hashchange', () => { const n = stepFromHash(); if (n && n !== S.step) select(n, true); });
+
+/* ================= boot ================= */
+async function resetDemo(){
+  if (S.busy) return;
+  const st = S.step, ui = S.ui, backend = S.backend;
+  await bootstrap();
+  S.step = st; S.backend = backend; S.ui = {...ui, polMsg: '', psiLog: '', proveLog: '', gateLog: '', drawLog: '', audOut: '', regOut: '', amt: ''};
+  renderStatus(); renderFlowLive(); renderDetail();
+}
+async function boot(){
+  SIG = {}; for (const k of [...SRC_KEYS, 'enclave']) SIG[k] = await mkSigner();
+  BASE = genBase();
+  await bootstrap();
+  buildFlow(); UI_READY = true;
+  S.step = stepFromHash() || 1;
+  renderStatus(); renderFlowLive(); renderDetail();
+  let lastW = 0;
+  new ResizeObserver(() => requestAnimationFrame(() => { const w = $('#flow').clientWidth; if (w !== lastW){ lastW = w; layoutFlow(); } else drawArrows(); })).observe($('#flow'));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => drawArrows());
+}
+boot().catch(err => { const d = $('#detail'); if (d) d.innerHTML = `<p class="callout">The demo could not start: ${esc(err && err.message || err)}</p>`; console.error(err); });
+</script>
+</body></html>
